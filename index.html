@@ -2,67 +2,187 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Olimpo Ventas</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f1f5f9;
-      color: #172033;
-    }
-    header {
-      background: #172554;
-      color: white;
-      padding: 25px 20px;
-    }
-    header h1 { margin: 0; }
-    main { padding: 20px; }
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 14px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 8px #0001;
-    }
-    .card h2 { margin-top: 0; }
-    button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 9px;
-      padding: 14px;
-      width: 100%;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Olimpo Ventas</title>
+<style>
+:root {
+  --fondo:#101014;
+  --tarjeta:#1d1c22;
+  --oro:#e5bc69;
+  --texto:#f7f2e8;
+}
+* {box-sizing:border-box}
+body {
+  margin:0;
+  background:var(--fondo);
+  color:var(--texto);
+  font-family:Arial,sans-serif;
+}
+header {
+  background:#19181d;
+  padding:28px 20px;
+  border-bottom:1px solid #5b4930;
+}
+h1 {
+  color:var(--oro);
+  letter-spacing:4px;
+  margin:0;
+}
+header p {color:#aaa;margin-bottom:0}
+main {padding:20px;max-width:700px;margin:auto}
+nav {display:flex;gap:10px;margin-bottom:28px}
+button {
+  cursor:pointer;
+  border:1px solid #a9894d;
+  border-radius:12px;
+  padding:15px;
+  font-size:16px;
+  background:#27242a;
+  color:var(--oro);
+}
+nav button {flex:1}
+button.activo {
+  background:linear-gradient(110deg,#b78838,#f1d28b);
+  color:#17130e;
+  font-weight:bold;
+}
+h2 {font-size:25px}
+h3 {color:var(--oro);margin-top:0}
+.grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.card {
+  background:var(--tarjeta);
+  border:1px solid #40372d;
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:14px;
+}
+.numero {
+  color:var(--oro);
+  font-size:25px;
+  font-weight:bold;
+}
+.menu button {
+  width:100%;
+  text-align:left;
+  margin:5px 0;
+}
+.oculto {display:none}
+.aviso {color:#aaa;font-size:13px}
+footer {
+  text-align:center;
+  color:#777;
+  padding:30px;
+}
+</style>
 </head>
 <body>
-  <header>
-    <h1>OLIMPO VENTAS</h1>
-    <p>Gestión comercial</p>
-  </header>
-  <main>
+<header>
+  <h1>◆ OLIMPO</h1>
+  <p>VENTAS · Gestión comercial</p>
+</header>
+<main>
+<nav>
+  <button id="btnAdmin" class="activo"
+    onclick="mostrar('admin')">
+    Administrador
+  </button>
+  <button id="btnVendedor"
+    onclick="mostrar('vendedor')">
+    Vendedor
+  </button>
+</nav>
+
+<section id="admin">
+  <p style="color:var(--oro)">PANEL ADMINISTRADOR</p>
+  <h2>Resumen del negocio</h2>
+  <div class="grid">
     <div class="card">
-      <h2>Bienvenido</h2>
-      <p>Panel de gestión de ventas y distribución.</p>
+      <h3>Ventas del día</h3>
+      <div class="numero">$0</div>
     </div>
     <div class="card">
-      <h2>Clientes</h2>
-      <button>Ver clientes</button>
+      <h3>Pedidos</h3>
+      <div class="numero">0</div>
     </div>
     <div class="card">
-      <h2>Pedidos</h2>
-      <button>Nuevo pedido</button>
+      <h3>Clientes</h3>
+      <div class="numero">0</div>
     </div>
     <div class="card">
-      <h2>Mis ventas</h2>
-      <button>Ver ventas</button>
+      <h3>Utilidad</h3>
+      <div class="numero">$0</div>
     </div>
-  </main>
+  </div>
+  <h3>Administración</h3>
+  <div class="menu">
+    <button onclick="aviso()">👥 Clientes</button>
+    <button onclick="aviso()">📦 Inventario</button>
+    <button onclick="aviso()">🛒 Pedidos</button>
+    <button onclick="aviso()">💰 Ventas y cobros</button>
+    <button onclick="aviso()">🚚 Rutas de reparto</button>
+    <button onclick="aviso()">📊 Rentabilidad</button>
+    <button onclick="aviso()">👤 Vendedores</button>
+    <button onclick="aviso()">🧾 Facturación SII</button>
+  </div>
+</section>
+
+<section id="vendedor" class="oculto">
+  <p style="color:var(--oro)">PANEL VENDEDOR</p>
+  <h2>Mi jornada comercial</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Mis ventas</h3>
+      <div class="numero">$0</div>
+    </div>
+    <div class="card">
+      <h3>Mi comisión</h3>
+      <div class="numero">$0</div>
+    </div>
+    <div class="card">
+      <h3>Visitas</h3>
+      <div class="numero">0</div>
+    </div>
+    <div class="card">
+      <h3>Pedidos</h3>
+      <div class="numero">0</div>
+    </div>
+  </div>
+  <h3>Mis herramientas</h3>
+  <div class="menu">
+    <button onclick="aviso()">➕ Nuevo pedido</button>
+    <button onclick="aviso()">👥 Mis clientes</button>
+    <button onclick="aviso()">📍 Ruta de visitas</button>
+    <button onclick="aviso()">✅ Registrar visita</button>
+    <button onclick="aviso()">💳 Registrar cobro</button>
+    <button onclick="aviso()">📷 Comprobante de pago</button>
+    <button onclick="aviso()">📈 Mis comisiones</button>
+  </div>
+</section>
+<p class="aviso">
+  Versión de demostración. Los datos reales,
+  permisos y funciones se conectarán después.
+</p>
+</main>
+<footer>OLIMPO VENTAS · Prototipo 2.0</footer>
+<script>
+function mostrar(panel) {
+  document.getElementById('admin').classList
+    .toggle('oculto',panel!=='admin');
+  document.getElementById('vendedor').classList
+    .toggle('oculto',panel!=='vendedor');
+  document.getElementById('btnAdmin').classList
+    .toggle('activo',panel==='admin');
+  document.getElementById('btnVendedor').classList
+    .toggle('activo',panel==='vendedor');
+}
+function aviso() {
+  alert('Esta función estará disponible en una próxima versión.');
+}
+</script>
 </body>
 </html>
-
