@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Olimpo Ventas</title>
+<style>
+.acciones-clientes {display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.campos-clientes {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.campos-clientes label {display:flex;flex-direction:column;gap:8px;color:var(--texto);font-size:15px}
+.campos-clientes .ancho {grid-column:1/-1}
+input,select {width:100%;min-width:0;font:inherit;font-size:16px;padding:13px;border:1px solid #79613d;border-radius:9px;background:#101014;color:var(--texto)}
+input::placeholder {color:#aaa}
+button:focus-visible,input:focus-visible,select:focus-visible {outline:3px solid var(--oro);outline-offset:3px}
+small {color:#bbb}
+#estadoClientes {color:var(--oro);overflow-wrap:anywhere}
+.cliente-datos {display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px;font-size:15px}
+.cliente-datos dt {color:#bbb}
+.cliente-datos dd {margin:0;overflow-wrap:anywhere}
+.cliente-card h3 {overflow-wrap:anywhere;line-height:1.4}
+.cliente-card a {color:var(--oro);overflow-wrap:anywhere}
+.cliente-card button {padding:11px 15px}
+@media(max-width:480px) {
+  .campos-clientes {grid-template-columns:minmax(0,1fr)}
+  nav {gap:8px} nav button {padding:13px 8px;font-size:15px}
+  .cliente-datos {grid-template-columns:80px minmax(0,1fr)}
+  main {padding:16px}
+}
+
+</style>
+  <link rel="icon" type="image/jpeg" href="IMG-20260808-WA0000.jpg">
+<style>
+:root {
+  --fondo:#101014;
+  --tarjeta:#1d1c22;
+  --oro:#e5bc69;
+  --texto:#f7f2e8;
+}
+* {box-sizing:border-box}
+body {
+  margin:0;
+  background:var(--fondo);
+  color:var(--texto);
+  font-family:Arial,sans-serif;
+}
+header {
+  background:#19181d;
+  padding:28px 20px;
+  border-bottom:1px solid #5b4930;
+}
+h1 {
+  color:var(--oro);
+  letter-spacing:4px;
+  margin:0;
+}
+header p {color:#aaa;margin-bottom:0}
+main {padding:20px;max-width:700px;margin:auto}
+nav {display:flex;gap:10px;margin-bottom:28px}
+button {
+  cursor:pointer;
+  border:1px solid #a9894d;
+  border-radius:12px;
+  padding:15px;
+  font-size:16px;
+  background:#27242a;
+  color:var(--oro);
+}
+nav button {flex:1}
+button.activo {
+  background:linear-gradient(110deg,#b78838,#f1d28b);
+  color:#17130e;
+  font-weight:bold;
+}
+h2 {font-size:25px}
+h3 {color:var(--oro);margin-top:0}
+.grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.card {
+  background:var(--tarjeta);
+  border:1px solid #40372d;
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:14px;
+}
+.numero {
+  color:var(--oro);
+  font-size:25px;
+  font-weight:bold;
+}
+.menu button {
+  width:100%;
+  text-align:left;
+  margin:5px 0;
+}
+.oculto {display:none}
+.aviso {color:#aaa;font-size:13px}
+footer {
+  text-align:center;
+  color:#777;
+  padding:30px;
+}
+</style>
+</head>
+<body>
+<header>
+ <img src="1ff5e39d5693fcdd86d126e7213e022ff52d4c957cd295cd7ef2f241e6cf331b.png" alt="Olimpo Distribuidora" style="display:block;width:150px;max-width:45%;height:auto;margin:0 auto 18px;border-radius:12px;">
+  <h1>◆ OLIMPO</h1>
+  <p>VENTAS · Gestión comercial</p>
+</header>
+<main>
+<nav>
+  <button id="btnAdmin" class="activo"
+    onclick="mostrar('admin')">
+    Administrador
+  </button>
+  <button id="btnVendedor"
+    onclick="mostrar('vendedor')">
+    Vendedor
+  </button>
+</nav>
+
+<section id="admin">
+  <p style="color:var(--oro)">PANEL ADMINISTRADOR</p>
+  <h2>Resumen del negocio</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Ventas del día</h3>
+      <div class="numero">$0</div>
+    </div>
+    <div class="card">
+      <h3>Pedidos</h3>
+      <div class="numero">0</div>
+    </div>
+    <div class="card">
+      <h3>Clientes</h3>
+      <div class="numero" id="totalClientes">0</div>
+    </div>
+    <div class="card">
+      <h3>Utilidad</h3>
+      <div class="numero">$0</div>
+    </div>
+  </div>
+  <h3>Administración</h3>
+  <div class="menu">
+    <button onclick="abrirClientes()">👥 Clientes</button>
+    <button onclick="aviso()">📦 Inventario</button>
+    <button onclick="aviso()">🛒 Pedidos</button>
+    <button onclick="aviso()">💰 Ventas y cobros</button>
+    <button onclick="aviso()">🚚 Rutas de reparto</button>
+    <button onclick="aviso()">📊 Rentabilidad</button>
+    <button onclick="aviso()">👤 Vendedores</button>
+    <button onclick="aviso()">🧾 Facturación SII</button>
+  </div>
+</section>
+
+<section id="vendedor" class="oculto">
+  <p style="color:var(--oro)">PANEL VENDEDOR</p>
+  <h2>Mi jornada comercial</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Mis ventas</h3>
+      <div class="numero">$0</div>
+    </div>
+    <div class="card">
+      <h3>Mi comisión</h3>
+      <div class="numero">$0</div>
+    </div>
+    <div class="card">
+      <h3>Visitas</h3>
+      <div class="numero">0</div>
+    </div>
+    <div class="card">
+      <h3>Pedidos</h3>
+      <div class="numero">0</div>
+    </div>
+  </div>
+  <h3>Mis herramientas</h3>
+  <div class="menu">
+    <button onclick="aviso()">➕ Nuevo pedido</button>
+    <button onclick="abrirClientes()">👥 Clientes</button>
+    <button onclick="aviso()">📍 Ruta de visitas</button>
+    <button onclick="aviso()">✅ Registrar visita</button>
+    <button onclick="aviso()">💳 Registrar cobro</button>
+    <button onclick="aviso()">📷 Comprobante de pago</button>
+    <button onclick="aviso()">📈 Mis comisiones</button>
+  </div>
+</section>
+<section id="clientes" class="oculto" aria-labelledby="tituloClientes">
+  <button type="button" id="volverClientes">← Volver al panel</button>
+  <h2 id="tituloClientes" tabindex="-1">Clientes</h2>
+  <p class="aviso">Guardado en este navegador. No se sincroniza entre dispositivos. Exporta un respaldo para conservar tus registros. Ambos paneles comparten esta lista hasta configurar usuarios y permisos.</p>
+  <p id="estadoClientes" role="status" aria-live="polite"></p>
+  <div class="acciones-clientes">
+    <button type="button" id="nuevoCliente">＋ Nuevo cliente</button>
+    <button type="button" id="exportarClientes">Exportar respaldo</button>
+  </div>
+  <form id="formCliente" class="card oculto">
+    <h3 id="tituloFormulario">Nuevo cliente</h3>
+    <p class="aviso">* Campo obligatorio</p>
+    <div class="campos-clientes">
+      <label>Razón social *<input name="razon_social" required maxlength="180" autocomplete="organization"></label>
+      <label>RUT *<input name="rut" required maxlength="14" placeholder="12.345.678-5" autocapitalize="characters" spellcheck="false" aria-describedby="ayudaRut"><small id="ayudaRut">Incluye el dígito verificador.</small></label>
+      <label>Teléfono<input name="telefono" type="tel" maxlength="30" autocomplete="tel" placeholder="+56 9 1234 5678"></label>
+      <label>Correo electrónico<input name="correo" type="email" maxlength="254" autocomplete="email"></label>
+      <label class="ancho">Dirección<input name="direccion" maxlength="300" autocomplete="street-address"></label>
+      <label class="ancho">Sector comercial<input name="sector_comercial" maxlength="100" list="sectoresClientes" placeholder="Ej.: Rancagua centro"></label>
+    </div>
+    <datalist id="sectoresClientes"></datalist>
+    <div class="acciones-clientes">
+      <button type="submit" class="activo">Guardar cliente</button>
+      <button type="button" id="cancelarCliente">Cancelar</button>
+    </div>
+  </form>
+  <div class="card campos-clientes">
+    <label>Buscar cliente<input id="buscarCliente" type="search" placeholder="Razón social o RUT"></label>
+    <label>Filtrar por sector<select id="filtroSector"><option value="">Todos los sectores</option></select></label>
+  </div>
+  <p id="conteoClientes" class="aviso" aria-live="polite"></p>
+  <div id="listaClientes"></div>
+</section>
+<p class="aviso">
+  Versión de demostración. Los datos reales,
+  permisos y funciones se conectarán después.
+</p>
+</main>
+<footer>OLIMPO VENTAS · Prototipo 2.1</footer>
+<script>
+function mostrar(panel) {
+  document.getElementById('clientes').classList.add('oculto');
+  document.getElementById('admin').classList
+    .toggle('oculto',panel!=='admin');
+  document.getElementById('vendedor').classList
+    .toggle('oculto',panel!=='vendedor');
+  document.getElementById('btnAdmin').classList
+    .toggle('activo',panel==='admin');
+  document.getElementById('btnVendedor').classList
+    .toggle('activo',panel==='vendedor');
+}
+function aviso() {
+  alert('Esta función estará disponible en una próxima versión.');
+}
+</script>
+<script>
+/* Repository boundary: replace clientesRepository when authenticated cloud access is ready. */
+'use strict';
+(() => {
+  const STORAGE_KEY = 'olimpo.clientes.v1';
+  const fields = ['razon_social', 'rut', 'telefono', 'correo', 'direccion', 'sector_comercial'];
+  const $ = id => document.getElementById(id);
+  const form = $('formCliente');
+  let clientes = [];
+  let editingId = null;
+  let originPanel = 'admin';
+  let available = true;
+  const normalizeRut = value => value.replace(/[.\s-]/g, '').toUpperCase();
+  const searchText = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  function validRut(value) {
+    const rut = normalizeRut(value);
+    if (!/^[0-9]{1,8}[0-9K]$/.test(rut) || Number(rut.slice(0, -1)) === 0) return false;
+    let sum = 0, factor = 2;
+    for (const digit of rut.slice(0, -1).split('').reverse()) {
+      sum += Number(digit) * factor;
+      factor = factor === 7 ? 2 : factor + 1;
+    }
+    const result = 11 - (sum % 11);
+    return rut.at(-1) === (result === 11 ? '0' : result === 10 ? 'K' : String(result));
+  }
+  function formatRut(value) {
+    const rut = normalizeRut(value);
+    return rut.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + rut.at(-1);
+  }
+  const clientesRepository = {
+    list() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const records = raw === null ? [] : JSON.parse(raw);
+      if (!Array.isArray(records)) throw new Error('Invalid records');
+      const ids = new Set(), ruts = new Set();
+      for (const record of records) {
+        if (!record || typeof record.id !== 'string' || !record.id ||
+            fields.some(field => typeof record[field] !== 'string') ||
+            !record.razon_social.trim() || !validRut(record.rut) ||
+            ids.has(record.id) || ruts.has(normalizeRut(record.rut))) throw new Error('Invalid record');
+        ids.add(record.id); ruts.add(normalizeRut(record.rut));
+      }
+      return records;
+    },
+    save(records) {
+      // Verify that another tab has not changed the list before replacing it.
+      if (JSON.stringify(this.list()) !== JSON.stringify(clientes)) throw new Error('Concurrent change');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+  };
+  function message(text) { $('estadoClientes').textContent = text; }
+  function hideForm() { form.classList.add('oculto'); editingId = null; form.reset(); }
+  function openForm(record) {
+    if (!available) return;
+    form.reset();
+    editingId = record ? record.id : null;
+    fields.forEach(field => {
+      form.elements[field].setCustomValidity('');
+      form.elements[field].value = record ? record[field] : '';
+    });
+    $('tituloFormulario').textContent = record ? 'Editar cliente' : 'Nuevo cliente';
+    form.classList.remove('oculto');
+    form.elements.razon_social.focus();
+  }
+  function element(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+  function render() {
+    $('totalClientes').textContent = clientes.length;
+    const previousSector = $('filtroSector').value;
+    const sectors = [...new Set(clientes.map(c => c.sector_comercial).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'es'));
+    $('filtroSector').replaceChildren(new Option('Todos los sectores', ''));
+    $('sectoresClientes').replaceChildren();
+    sectors.forEach(sector => {
+      $('filtroSector').add(new Option(sector, sector));
+      $('sectoresClientes').append(new Option(sector, sector));
+    });
+    $('filtroSector').value = sectors.includes(previousSector) ? previousSector : '';
+    const query = searchText($('buscarCliente').value.trim());
+    const rutQuery = normalizeRut(query);
+    const filtered = clientes.filter(c =>
+      (!query || searchText(c.razon_social).includes(query) || (rutQuery && normalizeRut(c.rut).includes(rutQuery))) &&
+      (!$('filtroSector').value || c.sector_comercial === $('filtroSector').value)
+    ).sort((a,b) => a.razon_social.localeCompare(b.razon_social, 'es'));
+    $('conteoClientes').textContent = `${filtered.length} de ${clientes.length} clientes`;
+    $('listaClientes').replaceChildren();
+    if (!filtered.length) $('listaClientes').append(element('p', available ? (clientes.length ? 'No hay clientes que coincidan con tu búsqueda.' : 'Aún no tienes clientes. Registra el primero con “Nuevo cliente”.') : 'No se pudo cargar la lista. No se ha sobrescrito ningún registro.', 'card'));
+    filtered.forEach(record => {
+      const card = element('article', undefined, 'card cliente-card');
+      card.append(element('h3', record.razon_social));
+      const details = element('dl', undefined, 'cliente-datos');
+      [['RUT', record.rut], ['Teléfono', record.telefono], ['Correo', record.correo], ['Dirección', record.direccion], ['Sector', record.sector_comercial]].forEach(([label,value]) => {
+        details.append(element('dt', label), element('dd', value || 'Sin registrar'));
+      });
+      card.append(details);
+      const actions = element('div', undefined, 'acciones-clientes');
+      const edit = element('button', 'Editar'); edit.type = 'button';
+      edit.setAttribute('aria-label', `Editar ${record.razon_social}`);
+      edit.addEventListener('click', () => openForm(record));
+      const remove = element('button', 'Eliminar'); remove.type = 'button';
+      remove.setAttribute('aria-label', `Eliminar ${record.razon_social}`);
+      remove.addEventListener('click', () => {
+        if (!window.confirm(`¿Eliminar a ${record.razon_social}? Esta acción no se puede deshacer.`)) return;
+        commit(clientes.filter(c => c.id !== record.id), 'Cliente eliminado.');
+      });
+      actions.append(edit, remove); card.append(actions); $('listaClientes').append(card);
+    });
+  }
+  function commit(next, success) {
+    try { clientesRepository.save(next); }
+    catch {
+      message('No se pudo guardar. El almacenamiento puede estar lleno o bloqueado, o la lista cambió en otra pestaña. Conserva los datos del formulario y revisa la otra pestaña antes de recargar.');
+      return;
+    }
+    clientes = next; hideForm(); render(); message(success);
+  }
+  window.abrirClientes = () => {
+    originPanel = $('btnAdmin').classList.contains('activo') ? 'admin' : 'vendedor';
+    $('admin').classList.add('oculto'); $('vendedor').classList.add('oculto');
+    $('clientes').classList.remove('oculto'); $('tituloClientes').focus();
+  };
+  $('volverClientes').addEventListener('click', () => mostrar(originPanel));
+  $('nuevoCliente').addEventListener('click', () => openForm());
+  $('cancelarCliente').addEventListener('click', () => { hideForm(); $('nuevoCliente').focus(); });
+  $('buscarCliente').addEventListener('input', render);
+  $('filtroSector').addEventListener('change', render);
+  fields.forEach(field => form.elements[field].addEventListener('input', () => form.elements[field].setCustomValidity('')));
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!available) return;
+    const record = Object.fromEntries(fields.map(field => [field, form.elements[field].value.trim()]));
+    if (!record.razon_social) {
+      form.elements.razon_social.setCustomValidity('Escribe la razón social.'); form.reportValidity(); return;
+    }
+    const rutInput = form.elements.rut;
+    if (!validRut(record.rut)) { rutInput.setCustomValidity('Revisa el RUT y su dígito verificador.'); form.reportValidity(); return; }
+    if (clientes.some(c => c.id !== editingId && normalizeRut(c.rut) === normalizeRut(record.rut))) {
+      rutInput.setCustomValidity('Este RUT ya está registrado. Puedes editar el cliente existente.'); form.reportValidity(); return;
+    }
+    record.rut = formatRut(record.rut);
+    const existing = clientes.find(c => c.id === editingId);
+    record.id = editingId || crypto.randomUUID();
+    record.created_at = existing ? existing.created_at : new Date().toISOString();
+    record.updated_at = new Date().toISOString();
+    const next = existing ? clientes.map(c => c.id === editingId ? record : c) : [...clientes, record];
+    commit(next, existing ? 'Cliente actualizado.' : 'Cliente guardado en este navegador.');
+  });
+  $('exportarClientes').addEventListener('click', () => {
+    if (!available) return;
+    const backup = { version: 1, exported_at: new Date().toISOString(), clientes };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+    const link = element('a'); link.href = url; link.download = `olimpo-clientes-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    message('Respaldo preparado para descargar. Guárdalo en un lugar seguro.');
+  });
+  window.addEventListener('storage', event => {
+    if (event.key === STORAGE_KEY || event.key === null) {
+      available = false; $('nuevoCliente').disabled = true; $('exportarClientes').disabled = true;
+      message('La lista cambió en otra pestaña. Recarga para ver la versión actual antes de seguir.');
+    }
+  });
+  try { clientes = clientesRepository.list(); }
+  catch {
+    available = false; $('nuevoCliente').disabled = true; $('exportarClientes').disabled = true;
+    message('No se pudieron leer los clientes guardados. Revisa el almacenamiento del navegador antes de continuar.');
+  }
+  render();
+})();
+
+</script>
+</body>
+<!-- Preparación Supabase (no ejecutada):
+-- Preparación únicamente: ejecutar cuando se configure el proyecto Supabase.
+-- No contiene políticas de acceso: RLS deniega el acceso desde el navegador.
+create table if not exists public.clientes (
+  id uuid primary key default gen_random_uuid(),
+  razon_social text not null check (length(trim(razon_social)) between 1 and 180),
+  rut text not null unique,
+  telefono text not null default '',
+  correo text not null default '',
+  direccion text not null default '',
+  sector_comercial text not null default '',
+  vendedor_id uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint clientes_rut_canonico check (rut ~ '^[0-9]{1,8}-[0-9K]$')
+);
+alter table public.clientes enable row level security;
+create index if not exists clientes_sector_idx on public.clientes(sector_comercial);
+create index if not exists clientes_vendedor_idx on public.clientes(vendedor_id);
+
+-->
+</html>
+
