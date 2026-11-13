@@ -7,6 +7,9 @@
 <title>Olimpo Ventas</title>
 <style>
 .pedido-campo {display:flex;flex-direction:column;gap:8px;margin:16px 0}
+#cobros .numero, #cobros p, #cobros h4 {overflow-wrap:anywhere}
+#cobros summary {cursor:pointer;padding:12px 0}
+#estadoCobros {color:var(--oro);overflow-wrap:anywhere}
 #estadoPedidos {color:var(--oro);overflow-wrap:anywhere}
 #carritoPedido h4, #pedidos .numero, #pedidos p {overflow-wrap:anywhere}
 #pedidos summary {cursor:pointer;padding:12px 0}
@@ -163,7 +166,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div class="grid">
     <div class="card">
       <h3>Ventas del día</h3>
-      <div class="numero">$0</div>
+      <div class="numero" id="ventasDiaTotal">$0</div>
     </div>
     <div class="card">
       <h3>Pedidos</h3>
@@ -174,8 +177,8 @@ input[type=file] {font-size:14px;padding:12px 8px}
       <div class="numero" id="totalClientes">0</div>
     </div>
     <div class="card">
-      <h3>Utilidad</h3>
-      <div class="numero">$0</div>
+      <h3>Cobrado hoy</h3>
+      <div class="numero" id="cobradoDiaTotal">$0</div>
     </div>
   </div>
   <h3>Administración</h3>
@@ -183,7 +186,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
     <button onclick="abrirClientes()">👥 Clientes</button>
     <button onclick="abrirInventario()">📦 Inventario</button>
     <button onclick="abrirPedidos()">🛒 Pedidos</button>
-    <button onclick="aviso()">💰 Ventas y cobros</button>
+    <button onclick="abrirCobros()">💰 Ventas y cobros</button>
     <button onclick="aviso()">🚚 Rutas de reparto</button>
     <button onclick="aviso()">📊 Rentabilidad</button>
     <button onclick="aviso()">👤 Vendedores</button>
@@ -196,8 +199,8 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <h2>Mi jornada comercial</h2>
   <div class="grid">
     <div class="card">
-      <h3>Mis ventas</h3>
-      <div class="numero">$0</div>
+      <h3>Mis ventas del día</h3>
+      <div class="numero" id="ventasDiaVendedor">$0</div>
     </div>
     <div class="card">
       <h3>Mi comisión</h3>
@@ -218,7 +221,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
     <button onclick="abrirClientes()">👥 Clientes</button>
     <button onclick="aviso()">📍 Ruta de visitas</button>
     <button onclick="aviso()">✅ Registrar visita</button>
-    <button onclick="aviso()">💳 Registrar cobro</button>
+    <button onclick="abrirCobros()">💳 Ventas y cobros</button>
     <button onclick="aviso()">📷 Comprobante de pago</button>
     <button onclick="aviso()">📈 Mis comisiones</button>
   </div>
@@ -266,6 +269,38 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div id="listaClientes"></div>
 </section>
 
+
+<section id="cobros" class="oculto" aria-labelledby="tituloCobros">
+ <button type="button" id="volverCobros">← Volver al panel</button>
+ <h2 id="tituloCobros" tabindex="-1">Ventas y cobros</h2>
+ <p class="aviso">Aquí se registran los cobros de pedidos entregados. Solo los pagos verificados reducen el saldo. Registrar un pago no realiza movimientos bancarios.</p>
+ <p id="estadoCobros" role="status" aria-live="polite"></p>
+ <div class="acciones-clientes"><button type="button" id="nuevoCobro">＋ Registrar cobro</button><button type="button" id="actualizarCobros">Actualizar</button></div>
+ <div class="grid">
+  <div class="card"><h3>Ventas entregadas</h3><div class="numero" id="ventasEntregadas">$0</div></div>
+  <div class="card"><h3>Cobrado y verificado</h3><div class="numero" id="cobradoVerificado">$0</div></div>
+  <div class="card"><h3>Saldo por cobrar</h3><div class="numero" id="saldoPorCobrar">$0</div></div>
+  <div class="card"><h3>Pagos por verificar</h3><div class="numero" id="pagosPorVerificar">$0</div></div>
+ </div>
+ <form id="formCobro" class="card oculto">
+  <h3>Registrar cobro</h3>
+  <label class="pedido-campo">Pedido entregado *<select id="pedidoCobro" required><option value="">Selecciona un pedido</option></select></label>
+  <p id="saldoPedidoCobro" class="aviso"></p>
+  <div class="campos-clientes">
+   <label>Monto recibido ($) *<input id="montoCobro" type="number" inputmode="decimal" required min="0.01" max="1000000000000" step="0.01"></label>
+   <label>Medio de pago *<select id="metodoCobro" required><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select></label>
+  </div>
+  <label class="pedido-campo">Referencia o número de operación<input id="referenciaCobro" maxlength="200" placeholder="Obligatorio para transferencias"></label>
+  <p id="ayudaCobro" class="aviso"></p>
+  <div class="acciones-clientes"><button type="submit" id="guardarCobro" class="activo">Guardar cobro</button><button type="button" id="cancelarCobro">Cancelar</button></div>
+ </form>
+ <div class="card campos-clientes">
+  <label>Buscar venta<input id="buscarCobro" type="search" placeholder="Número de pedido o cliente"></label>
+  <label>Mostrar<select id="filtroCobros"><option value="pendientes">Con saldo pendiente</option><option value="revision">Con pagos por verificar</option><option value="pagados">Pagados</option><option value="todos">Todos los entregados</option></select></label>
+ </div>
+ <p id="conteoCobros" class="aviso" aria-live="polite"></p>
+ <div id="listaCobros"></div>
+</section>
 <section id="pedidos" class="oculto" aria-labelledby="tituloPedidos">
   <button type="button" id="volverPedidos">← Volver al panel</button>
   <h2 id="tituloPedidos" tabindex="-1">Pedidos</h2>
@@ -332,11 +367,11 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div id="listaProductos"></div>
 </section>
 <p class="aviso">
-  Clientes, inventario y pedidos conectados a la nube. Ventas, cobros y los demás módulos continúan en demostración.
+  Clientes, inventario, pedidos y cobros conectados a la nube. Rutas, rentabilidad, comisiones y facturación SII continúan en preparación.
 </p>
 </div>
 </main>
-<footer>OLIMPO VENTAS · Clientes, inventario y pedidos · 3.2</footer>
+<footer>OLIMPO VENTAS · Ventas y cobros · 3.3</footer>
 
 
 <script>function aviso(){alert("Esta función estará disponible en una próxima versión.");}</script>
@@ -436,6 +471,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     toggle('formCliente', false); editing = null; pendingRef = null; form.reset();
   }
   function lock() {
+    resetPayments();
     resetOrders();
     resetInventory();
     generation++; loadNumber++; user = null; profile = null; records = []; vendors = [];
@@ -602,13 +638,13 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   window.mostrar = panel => {
     if (!profile) return;
     if (!isAdmin()) panel = 'vendedor';
-    toggle('pedidos',false); toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
+    toggle('cobros',false); toggle('pedidos',false); toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
     $('btnAdmin').classList.toggle('activo',panel === 'admin'); $('btnVendedor').classList.toggle('activo',panel === 'vendedor');
   };
   window.abrirClientes = () => {
     if (!profile) return;
     originPanel = $('btnAdmin').classList.contains('activo') ? 'admin' : 'vendedor';
-    toggle('pedidos',false); toggle('inventario',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
+    toggle('cobros',false); toggle('pedidos',false); toggle('inventario',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
     if (!listReady && !busy) refresh();
   };
   $('volverClientes').addEventListener('click',() => window.mostrar(originPanel));
@@ -667,6 +703,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       window.mostrar(isAdmin() ? 'admin' : 'vendedor'); render();
       await refresh();
       if(current(stamp)) await refreshOrders();
+      if(current(stamp)) await refreshPayments();
     } catch (error) {
       if (stamp !== generation) return;
       // Fail closed even if the profile loaded but setup or authentication failed.
@@ -683,7 +720,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     } catch (error) { authMessage(M.errorText(error)); $('loginSubmit').disabled = false; }
   });
   $('cerrarSesion').addEventListener('click',async () => {
-    if ((busy || inventoryBusy || orderBusy || orderUncertain) && !confirm('Hay una operación en curso. ¿Cerrar sesión? Es posible que el cambio ya se haya guardado; compruébalo al volver a entrar.')) return;
+    if ((busy || inventoryBusy || orderBusy || orderUncertain || paymentBusy || paymentUncertain) && !confirm('Hay una operación en curso. ¿Cerrar sesión? Es posible que el cambio ya se haya guardado; compruébalo al volver a entrar.')) return;
     lock(); authMessage('Cerrando sesión…');
     try {
       const {error} = await client.auth.signOut({scope:'local'});
@@ -789,7 +826,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   }
   window.abrirInventario = () => {
     if (!isAdmin()) return;
-    toggle('pedidos',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
+    toggle('cobros',false); toggle('pedidos',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
     $('tituloInventario').focus(); refreshInventory();
   };
   $('volverInventario').addEventListener('click',() => window.mostrar('admin'));
@@ -941,6 +978,10 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       const detail=node('details'), summary=node('summary','Ver productos'); detail.append(summary);
       for(const line of o.detalle_pedidos||[]) detail.append(node('p',(line.producto_nombre||'Producto #'+line.producto_id)+' · '+quantity(line.cantidad)+' '+(line.producto_unidad||'')+' × '+money(line.precio_unitario)+' = '+money(roundMoney(Number(line.cantidad)*Number(line.precio_unitario)))));
       card.append(detail);
+      if(o.estado==='entregado'){
+        const collect=node('button','Ver cobros');collect.type='button';
+        collect.addEventListener('click',()=>window.abrirCobros(o.id));card.append(collect);
+      }
       if(isAdmin() && ['pendiente','confirmado'].includes(o.estado)) {
         const actions=node('div',undefined,'acciones-clientes');
         for(const [target,label] of o.estado==='pendiente' ? [['confirmado','Confirmar pedido'],['cancelado','Cancelar pedido']] : [['entregado','Marcar entrega'],['cancelado','Cancelar pedido']]) {
@@ -992,7 +1033,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   window.abrirPedidos=()=>{
     if(!profile)return;
     orderOrigin=$('btnAdmin').classList.contains('activo')?'admin':'vendedor';
-    toggle('admin',false);toggle('vendedor',false);toggle('clientes',false);toggle('inventario',false);toggle('pedidos',true);
+    toggle('cobros',false);toggle('admin',false);toggle('vendedor',false);toggle('clientes',false);toggle('inventario',false);toggle('pedidos',true);
     $('tituloPedidos').focus();refreshOrders();
   };
   $('volverPedidos').addEventListener('click',()=>window.mostrar(orderOrigin));
@@ -1047,10 +1088,182 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       if(!current(stamp))return;
       inventoryReady=false;products=[];renderProducts();
       orderBusyState(false);await refreshOrders();
+      if(current(stamp)&&state==='entregado')await refreshPayments();
       if(current(stamp))orderMessage(state==='entregado'?'Entrega registrada y stock descontado. El pago sigue pendiente hasta registrar el cobro.':'Estado del pedido actualizado.');
     } catch(error){if(current(stamp))orderMessage(orderError(error)+' Actualiza la lista para comprobar el estado.');}
     finally{if(current(stamp))orderBusyState(false);}
   }
+
+
+ const paymentForm=$('formCobro');
+ const PAYMENT_COLS='id::text,cliente_nombre,estado,estado_pago,total,entregado_at,pagos(id::text,pedido_id::text,monto,metodo,referencia,estado,fecha,revision::text,client_ref)';
+ let paymentOrders=[],paymentsReady=false,paymentBusy=false,paymentLoad=0,paymentOrigin='admin';
+ let paymentRef=null,paymentAttempt=null,paymentUncertain=false;
+ const paymentMessage=text=>{$('estadoCobros').textContent=text;};
+ const chileDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+ function balances(o){
+  const paid=roundMoney((o.pagos||[]).filter(p=>p.estado==='verificado').reduce((sum,p)=>sum+Number(p.monto),0));
+  const pending=roundMoney((o.pagos||[]).filter(p=>p.estado==='pendiente').reduce((sum,p)=>sum+Number(p.monto),0));
+  return {paid,pending,due:Math.max(0,roundMoney(Number(o.total)-paid)),available:Math.max(0,roundMoney(Number(o.total)-paid-pending))};
+ }
+ function paymentError(error){
+  if(error?.code==='P4093')return 'El monto supera el saldo disponible o ya hay pagos por verificar. Actualiza antes de registrar otro cobro.';
+  if(error?.code==='P4090')return 'Este pago cambió en otro dispositivo. Actualiza la lista.';
+  if(error?.code==='42501')return 'Tu cuenta no tiene permiso para cobrar este pedido o verificar pagos.';
+  if(error?.code==='P4000')return 'Revisa el pedido entregado, el monto y la referencia de transferencia.';
+  return 'No se pudo confirmar el guardado. Comprueba tu conexión.';
+ }
+ function paymentBusyState(value){
+  paymentBusy=value;
+  $('nuevoCobro').disabled=value||!paymentsReady||paymentUncertain||!paymentOrders.some(o=>balances(o).available>0);
+  $('actualizarCobros').disabled=value;
+  paymentForm.querySelectorAll('input,select,button').forEach(el=>{el.disabled=value||paymentUncertain;});
+  $('guardarCobro').disabled=value;
+  $('guardarCobro').textContent=paymentUncertain?'Reintentar guardado':'Guardar cobro';
+  $('listaCobros').querySelectorAll('button').forEach(el=>{el.disabled=value||!paymentsReady;});
+ }
+ function closePaymentForm(){
+  toggle('formCobro',false);paymentForm.reset();paymentRef=null;paymentAttempt=null;paymentUncertain=false;
+  $('saldoPedidoCobro').textContent='';$('referenciaCobro').required=false;
+ }
+ function resetPayments(){
+  paymentLoad++;paymentOrders=[];paymentsReady=false;paymentBusy=false;closePaymentForm();
+  $('listaCobros').replaceChildren();$('pedidoCobro').replaceChildren(new Option('Selecciona un pedido',''));
+  $('buscarCobro').value='';$('filtroCobros').value='pendientes';$('conteoCobros').textContent='';
+  for(const id of ['ventasEntregadas','cobradoVerificado','saldoPorCobrar','pagosPorVerificar','ventasDiaTotal','cobradoDiaTotal','ventasDiaVendedor'])$(id).textContent=money(0);
+  $('ayudaCobro').textContent='';paymentMessage('');toggle('cobros',false);paymentBusyState(false);
+ }
+ function paymentHelp(){
+  const transfer=$('metodoCobro').value==='transferencia';$('referenciaCobro').required=transfer;
+  $('ayudaCobro').textContent=transfer?'La transferencia quedará pendiente. El administrador debe comprobar el ingreso en el banco y verificarla aquí.':isAdmin()?'Este cobro en efectivo quedará verificado al guardarlo.':'El administrador debe verificar el efectivo recibido antes de descontarlo del saldo.';
+ }
+ function paymentOrderInfo(fill=false){
+  const o=paymentOrders.find(o=>o.id===$('pedidoCobro').value);
+  if(!o){$('saldoPedidoCobro').textContent='';return;}
+  const b=balances(o);$('saldoPedidoCobro').textContent='Total: '+money(o.total)+' · Verificado: '+money(b.paid)+' · Por verificar: '+money(b.pending)+' · Disponible para registrar: '+money(b.available);
+  $('montoCobro').max=String(b.available);
+  if(fill)$('montoCobro').value=b.available>0?b.available.toFixed(2):'';
+ }
+ function populatePaymentOrders(){
+  const selected=$('pedidoCobro').value;
+  $('pedidoCobro').replaceChildren(new Option('Selecciona un pedido',''),...paymentOrders.map(o=>new Option('#'+o.id+' · '+(o.cliente_nombre||'Cliente')+' · Saldo '+money(balances(o).due),o.id)));
+  if(paymentOrders.some(o=>o.id===selected))$('pedidoCobro').value=selected;
+  paymentOrderInfo();
+ }
+ function renderPayments(){
+  const sum=(fn)=>paymentOrders.reduce((s,o)=>s+fn(o),0),today=chileDay(new Date());
+  $('ventasEntregadas').textContent=money(sum(o=>Number(o.total)));
+  $('cobradoVerificado').textContent=money(sum(o=>balances(o).paid));
+  $('saldoPorCobrar').textContent=money(sum(o=>balances(o).due));
+  $('pagosPorVerificar').textContent=money(sum(o=>balances(o).pending));
+  const salesToday=sum(o=>o.entregado_at&&chileDay(o.entregado_at)===today?Number(o.total):0);
+  $('ventasDiaTotal').textContent=money(salesToday);$('ventasDiaVendedor').textContent=money(salesToday);
+  $('cobradoDiaTotal').textContent=money(sum(o=>(o.pagos||[]).filter(p=>p.estado==='verificado'&&chileDay(p.fecha)===today).reduce((s,p)=>s+Number(p.monto),0)));
+  const query=M.searchText($('buscarCobro').value.trim()),filter=$('filtroCobros').value;
+  const visible=paymentOrders.filter(o=>{
+   const b=balances(o);return (!query||M.searchText(o.id+' '+(o.cliente_nombre||'')).includes(query))&&(filter==='todos'||filter==='pendientes'&&b.due>0||filter==='pagados'&&b.due===0||filter==='revision'&&b.pending>0);
+  });
+  $('conteoCobros').textContent=paymentsReady?visible.length+' de '+paymentOrders.length+' ventas entregadas':'';
+  $('listaCobros').replaceChildren();
+  if(!visible.length)$('listaCobros').append(node('p',!paymentsReady?'Actualiza para cargar ventas y cobros.':paymentOrders.length?'No hay ventas para estos filtros.':'Aún no hay pedidos entregados.','card'));
+  for(const o of visible){
+   const b=balances(o),card=node('article',undefined,'card cliente-card');
+   card.append(node('h3','Pedido #'+o.id+' · '+(o.cliente_nombre||'Cliente')),node('p','Pago: '+o.estado_pago));
+   const dl=node('dl',undefined,'cliente-datos');
+   for(const[label,value]of [['Venta',money(o.total)],['Verificado',money(b.paid)],['Por verificar',money(b.pending)],['Saldo',money(b.due)]])dl.append(node('dt',label),node('dd',value));
+   card.append(dl);
+   if(b.available>0){
+    const add=node('button','Registrar cobro');add.type='button';add.setAttribute('aria-label','Registrar cobro del pedido #'+o.id);
+    add.addEventListener('click',()=>openPaymentForm(o.id));card.append(add);
+   }else if(b.pending>0)card.append(node('p','El saldo restante ya tiene pagos pendientes de verificación.','aviso'));
+   const history=node('details');history.append(node('summary','Historial de pagos ('+(o.pagos||[]).length+')'));
+   for(const p of o.pagos||[]){
+    const entry=node('div',undefined,'card');
+    entry.append(node('h4',money(p.monto)+' · '+p.metodo),node('p','Estado: '+p.estado));
+    entry.append(node('p',new Date(p.fecha).toLocaleString('es-CL',{timeZone:'America/Santiago'}),'aviso'));
+    if(p.referencia)entry.append(node('p','Referencia: '+p.referencia));
+    if(isAdmin()&&p.estado==='pendiente'){
+     const actions=node('div',undefined,'acciones-clientes');
+     for(const[state,label]of [['verificado','Verificar pago'],['rechazado','Rechazar pago']]){
+      const btn=node('button',label);btn.type='button';btn.setAttribute('aria-label',label+' #'+p.id);
+      btn.addEventListener('click',()=>reviewPayment(p,state));actions.append(btn);
+     }entry.append(actions);
+    }history.append(entry);
+   }
+   card.append(history);$('listaCobros').append(card);
+  }paymentBusyState(paymentBusy);
+ }
+ async function refreshPayments(){
+  if(!user||!profile||paymentBusy)return;
+  const stamp=generation,request=++paymentLoad;
+  paymentBusyState(true);paymentMessage('Cargando ventas, saldos y pagos…');
+  try{
+   const loaded=[];
+   for(let start=0;;start+=500){
+    const{data,error}=await client.from('pedidos').select(PAYMENT_COLS).eq('estado','entregado').order('id',{ascending:false}).range(start,start+499);
+    if(error)throw error;loaded.push(...data);if(data.length<500)break;
+   }
+   if(!current(stamp)||request!==paymentLoad)return;
+   paymentOrders=loaded;paymentsReady=true;populatePaymentOrders();renderPayments();
+   paymentMessage(paymentUncertain?'Hay un guardado sin confirmar. Pulsa Reintentar guardado; se usará la misma referencia para evitar duplicados.':'Ventas y cobros actualizados.');
+  }catch(error){if(current(stamp)&&request===paymentLoad){paymentsReady=false;paymentOrders=[];renderPayments();paymentMessage(paymentError(error));}}
+  finally{if(current(stamp)&&request===paymentLoad)paymentBusyState(false);}
+ }
+ function openPaymentForm(id=''){
+  if(!paymentsReady||paymentBusy||paymentUncertain)return;
+  if(!paymentForm.classList.contains('oculto')&&!confirm('¿Descartar el cobro sin guardar y comenzar otro?'))return;
+  closePaymentForm();paymentRef=crypto.randomUUID();populatePaymentOrders();
+  $('pedidoCobro').value=id;paymentOrderInfo(true);paymentHelp();
+  toggle('formCobro',true);$('pedidoCobro').focus();
+ }
+ window.abrirCobros=async(id='')=>{
+  if(!profile)return;
+  paymentOrigin=$('btnAdmin').classList.contains('activo')?'admin':'vendedor';
+  for(const panel of ['admin','vendedor','clientes','inventario','pedidos'])toggle(panel,false);
+  toggle('cobros',true);$('tituloCobros').focus();const stamp=generation;
+  if(id){$('buscarCobro').value=id;$('filtroCobros').value='todos';}
+  await refreshPayments();if(id&&current(stamp)&&balances(paymentOrders.find(o=>o.id===id)||{total:0}).available>0)openPaymentForm(id);
+ };
+ $('volverCobros').addEventListener('click',()=>window.mostrar(paymentOrigin));
+ $('nuevoCobro').addEventListener('click',()=>openPaymentForm());
+ $('actualizarCobros').addEventListener('click',refreshPayments);
+ $('pedidoCobro').addEventListener('change',()=>paymentOrderInfo(true));
+ $('metodoCobro').addEventListener('change',paymentHelp);
+ $('buscarCobro').addEventListener('input',renderPayments);$('filtroCobros').addEventListener('change',renderPayments);
+ $('cancelarCobro').addEventListener('click',()=>{if(!paymentBusy&&!paymentUncertain){closePaymentForm();paymentBusyState(false);}});
+ paymentForm.addEventListener('submit',async event=>{
+  event.preventDefault();if(paymentBusy||!paymentsReady||!profile)return;
+  if(!paymentAttempt){
+   const o=paymentOrders.find(o=>o.id===$('pedidoCobro').value),amount=Number($('montoCobro').value);
+   if(!o||!Number.isFinite(amount)||amount<=0||amount>balances(o).available||Math.abs(amount*100-Math.round(amount*100))>0.00001){paymentMessage('Selecciona un pedido y un monto mayor que cero que no supere el saldo disponible, con hasta dos decimales.');return;}
+   if($('metodoCobro').value==='transferencia'&&!$('referenciaCobro').value.trim()){paymentMessage('Escribe la referencia de la transferencia.');return;}
+   paymentAttempt={p_pedido:o.id,p_monto:amount.toFixed(2),p_metodo:$('metodoCobro').value,p_referencia:$('referenciaCobro').value.trim(),p_ref:paymentRef};
+  }
+  const stamp=generation;paymentBusyState(true);paymentMessage('Guardando cobro…');
+  try{
+   const{data,error}=await client.rpc('olimpo_registrar_pago',paymentAttempt);if(error)throw error;
+   if(!current(stamp))return;const state=data.estado;
+   closePaymentForm();paymentBusyState(false);await refreshOrders();if(current(stamp))await refreshPayments();
+   if(current(stamp))paymentMessage(state==='verificado'?'Cobro registrado y verificado. El saldo del pedido quedó actualizado.':'Cobro registrado, pendiente de verificación del administrador. El saldo bajará al verificarlo.');
+  }catch(error){
+   if(!current(stamp))return;
+   const known=['P4000','P4093','42501','22P02','23514'].includes(error?.code);
+   paymentUncertain=!known;if(known)paymentAttempt=null;
+   paymentMessage(paymentError(error)+(known?'':' Pulsa Reintentar guardado; se conservará la referencia para evitar duplicados.'));
+  }finally{if(current(stamp))paymentBusyState(false);}
+ });
+ async function reviewPayment(payment,state){
+  if(!isAdmin()||paymentBusy||!paymentsReady)return;
+  const text=state==='verificado'?'¿Verificar este pago de '+money(payment.monto)+'? Confirma que recibiste el efectivo o comprobaste el ingreso en tu banco.':'¿Rechazar este pago de '+money(payment.monto)+'? El importe seguirá por cobrar y se conservará el historial.';
+  if(!confirm(text))return;
+  const stamp=generation;paymentBusyState(true);paymentMessage('Actualizando la revisión…');
+  try{
+   const{error}=await client.rpc('olimpo_revisar_pago',{p_id:payment.id,p_revision:payment.revision,p_estado:state});if(error)throw error;
+   if(!current(stamp))return;paymentBusyState(false);await refreshOrders();if(current(stamp))await refreshPayments();
+   if(current(stamp))paymentMessage(state==='verificado'?'Pago verificado y saldo actualizado.':'Pago rechazado. El historial se conservó y puedes registrar el cobro correcto.');
+  }catch(error){if(current(stamp))paymentMessage(paymentError(error)+' Actualiza para comprobar el estado antes de volver a intentarlo.');}
+  finally{if(current(stamp))paymentBusyState(false);}
+ }
 
   lock();
   try {
