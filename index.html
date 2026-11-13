@@ -104,6 +104,17 @@ footer {
   padding:30px;
 }
 </style>
+<style>
+button:disabled {opacity:.5;cursor:wait}
+#estadoSesion,#quienSoy {overflow-wrap:anywhere;line-height:1.5}
+#estadoSesion {color:var(--oro)}
+#quienSoy {font-size:14px}
+.asignacion,.archivo-respaldo {display:flex;flex-direction:column;gap:10px;line-height:1.4;margin:16px 0}
+summary {color:var(--oro);cursor:pointer;line-height:1.5}
+input[type=file] {font-size:14px;padding:12px 8px}
+.cliente-datos {grid-template-columns:105px minmax(0,1fr)}
+@media(max-width:480px) {.cliente-datos {grid-template-columns:90px minmax(0,1fr)}}
+</style>
 </head>
 <body>
 <header>
@@ -112,6 +123,25 @@ footer {
   <p>VENTAS · Gestión comercial</p>
 </header>
 <main>
+
+<section id="acceso" class="card" aria-labelledby="tituloAcceso">
+  <h2 id="tituloAcceso">Bienvenido a Olimpo</h2>
+  <p class="aviso">Ingresa con tu cuenta de Olimpo Ventas. Tus clientes se guardarán en la nube.</p>
+  <p id="estadoSesion" role="status" aria-live="polite">Cargando conexión segura…</p>
+  <form id="formAcceso" class="campos-clientes">
+    <label class="ancho">Correo electrónico<input id="correoAcceso" type="email" required autocomplete="username" maxlength="254"></label>
+    <label class="ancho">Contraseña<input id="claveAcceso" type="password" required autocomplete="current-password" minlength="6"></label>
+    <button id="loginSubmit" type="submit" class="activo ancho">Entrar</button>
+  </form>
+  <p class="aviso">Si olvidaste tu contraseña o aún no tienes cuenta, contacta al administrador.</p>
+</section>
+<div id="barraSesion" class="card oculto">
+  <p id="quienSoy"></p>
+  <button type="button" id="cerrarSesion">Cerrar sesión</button>
+</div>
+<noscript>Activa JavaScript en tu navegador para usar Olimpo Ventas.</noscript>
+<div id="areaAplicacion" class="oculto">
+
 <nav>
   <button id="btnAdmin" class="activo"
     onclick="mostrar('admin')">
@@ -192,16 +222,18 @@ footer {
 <section id="clientes" class="oculto" aria-labelledby="tituloClientes">
   <button type="button" id="volverClientes">← Volver al panel</button>
   <h2 id="tituloClientes" tabindex="-1">Clientes</h2>
-  <p class="aviso">Guardado en este navegador. No se sincroniza entre dispositivos. Exporta un respaldo para conservar tus registros. Ambos paneles comparten esta lista hasta configurar usuarios y permisos.</p>
+  <p class="aviso" id="clientesAyuda">Cargando permisos de tu cuenta…</p>
   <p id="estadoClientes" role="status" aria-live="polite"></p>
   <div class="acciones-clientes">
     <button type="button" id="nuevoCliente">＋ Nuevo cliente</button>
+    <button type="button" id="actualizarClientes">Actualizar</button>
     <button type="button" id="exportarClientes">Exportar respaldo</button>
   </div>
   <form id="formCliente" class="card oculto">
     <h3 id="tituloFormulario">Nuevo cliente</h3>
     <p class="aviso">* Campo obligatorio</p>
     <div class="campos-clientes">
+      <label>Nombre del negocio *<input name="nombre_negocio" required maxlength="180" autocomplete="organization"></label>
       <label>Razón social *<input name="razon_social" required maxlength="180" autocomplete="organization"></label>
       <label>RUT *<input name="rut" required maxlength="14" placeholder="12.345.678-5" autocapitalize="characters" spellcheck="false" aria-describedby="ayudaRut"><small id="ayudaRut">Incluye el dígito verificador.</small></label>
       <label>Teléfono<input name="telefono" type="tel" maxlength="30" autocomplete="tel" placeholder="+56 9 1234 5678"></label>
@@ -210,234 +242,413 @@ footer {
       <label class="ancho">Sector comercial<input name="sector_comercial" maxlength="100" list="sectoresClientes" placeholder="Ej.: Rancagua centro"></label>
     </div>
     <datalist id="sectoresClientes"></datalist>
+    <label id="asignacionVendedor" class="asignacion oculto">Vendedor asignado<select id="selectorVendedor"><option value="">Sin asignar</option></select></label>
     <div class="acciones-clientes">
       <button type="submit" class="activo">Guardar cliente</button>
       <button type="button" id="cancelarCliente">Cancelar</button>
     </div>
   </form>
   <div class="card campos-clientes">
-    <label>Buscar cliente<input id="buscarCliente" type="search" placeholder="Razón social o RUT"></label>
+    <label>Buscar cliente<input id="buscarCliente" type="search" placeholder="Negocio, razón social o RUT"></label>
     <label>Filtrar por sector<select id="filtroSector"><option value="">Todos los sectores</option></select></label>
   </div>
+  <details id="herramientasImportacion" class="card oculto">
+    <summary>Importar clientes anteriores</summary>
+    <p class="aviso">Solo se añaden clientes nuevos. Se conserva el respaldo original y se omiten los ya registrados. Los importados quedan sin vendedor asignado.</p>
+    <div class="acciones-clientes"><button id="importarLocales" type="button">Importar de este navegador</button></div>
+    <label class="archivo-respaldo">O selecciona el respaldo JSON descargado<input id="importarArchivo" type="file" accept=".json,application/json"></label>
+  </details>
   <p id="conteoClientes" class="aviso" aria-live="polite"></p>
   <div id="listaClientes"></div>
 </section>
 <p class="aviso">
-  Versión de demostración. Los datos reales,
-  permisos y funciones se conectarán después.
+  Clientes conectados a la nube. Inventario, pedidos, ventas y los demás módulos continúan en demostración.
 </p>
+</div>
 </main>
-<footer>OLIMPO VENTAS · Prototipo 2.1</footer>
+<footer>OLIMPO VENTAS · Clientes en la nube · 3.0</footer>
+
+
+<script>function aviso(){alert("Esta función estará disponible en una próxima versión.");}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-function mostrar(panel) {
-  document.getElementById('clientes').classList.add('oculto');
-  document.getElementById('admin').classList
-    .toggle('oculto',panel!=='admin');
-  document.getElementById('vendedor').classList
-    .toggle('oculto',panel!=='vendedor');
-  document.getElementById('btnAdmin').classList
-    .toggle('activo',panel==='admin');
-  document.getElementById('btnVendedor').classList
-    .toggle('activo',panel==='vendedor');
-}
-function aviso() {
-  alert('Esta función estará disponible en una próxima versión.');
-}
-</script>
-<script>
-/* Repository boundary: replace clientesRepository when authenticated cloud access is ready. */
 'use strict';
-(() => {
-  const STORAGE_KEY = 'olimpo.clientes.v1';
-  const fields = ['razon_social', 'rut', 'telefono', 'correo', 'direccion', 'sector_comercial'];
-  const $ = id => document.getElementById(id);
-  const form = $('formCliente');
-  let clientes = [];
-  let editingId = null;
-  let originPanel = 'admin';
-  let available = true;
-  const normalizeRut = value => value.replace(/[.\s-]/g, '').toUpperCase();
-  const searchText = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const OlimpoModel = (() => {
+  const fields = ['nombre_negocio','razon_social','rut','telefono','correo','direccion','sector_comercial'];
+  const normalizeRut = value => String(value || '').replace(/[.\s-]/g, '').toUpperCase();
+  const searchText = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   function validRut(value) {
     const rut = normalizeRut(value);
-    if (!/^[0-9]{1,8}[0-9K]$/.test(rut) || Number(rut.slice(0, -1)) === 0) return false;
+    if (!/^[0-9]{1,8}[0-9K]$/.test(rut) || Number(rut.slice(0,-1)) === 0) return false;
     let sum = 0, factor = 2;
-    for (const digit of rut.slice(0, -1).split('').reverse()) {
-      sum += Number(digit) * factor;
-      factor = factor === 7 ? 2 : factor + 1;
+    for (const digit of rut.slice(0,-1).split('').reverse()) {
+      sum += Number(digit) * factor; factor = factor === 7 ? 2 : factor + 1;
     }
-    const result = 11 - (sum % 11);
+    const result = 11 - sum % 11;
     return rut.at(-1) === (result === 11 ? '0' : result === 10 ? 'K' : String(result));
   }
-  function formatRut(value) {
-    const rut = normalizeRut(value);
-    return rut.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + rut.at(-1);
+  const canonicalRut = value => { const rut = normalizeRut(value); return rut.slice(0,-1) + '-' + rut.at(-1); };
+  const formatRut = value => validRut(value) ? canonicalRut(value).replace(/\B(?=(\d{3})+-)/g, '.') : value || '';
+  function fromCloud(row) {
+    return {...row, id:String(row.id), nombre_negocio:row.nombre_negocio || '', razon_social:row.razon_social || '', rut:row.rut || '', telefono:row.telefono || '', correo:row.email || '', direccion:row.direccion || '', sector_comercial:row.sector || ''};
   }
-  const clientesRepository = {
-    list() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const records = raw === null ? [] : JSON.parse(raw);
-      if (!Array.isArray(records)) throw new Error('Invalid records');
-      const ids = new Set(), ruts = new Set();
-      for (const record of records) {
-        if (!record || typeof record.id !== 'string' || !record.id ||
-            fields.some(field => typeof record[field] !== 'string') ||
-            !record.razon_social.trim() || !validRut(record.rut) ||
-            ids.has(record.id) || ruts.has(normalizeRut(record.rut))) throw new Error('Invalid record');
-        ids.add(record.id); ruts.add(normalizeRut(record.rut));
-      }
-      return records;
-    },
-    save(records) {
-      // Verify that another tab has not changed the list before replacing it.
-      if (JSON.stringify(this.list()) !== JSON.stringify(clientes)) throw new Error('Concurrent change');
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    }
-  };
-  function message(text) { $('estadoClientes').textContent = text; }
-  function hideForm() { form.classList.add('oculto'); editingId = null; form.reset(); }
-  function openForm(record) {
-    if (!available) return;
-    form.reset();
-    editingId = record ? record.id : null;
-    fields.forEach(field => {
-      form.elements[field].setCustomValidity('');
-      form.elements[field].value = record ? record[field] : '';
+  function toCloud(record, owner) {
+    return {nombre_negocio:record.nombre_negocio.trim(), razon_social:record.razon_social.trim(), rut:canonicalRut(record.rut), telefono:record.telefono.trim(), email:record.correo.trim(), direccion:record.direccion.trim(), sector:record.sector_comercial.trim(), vendedor_id:owner || null};
+  }
+  function parseBackup(text) {
+    const parsed = JSON.parse(text);
+    const rows = Array.isArray(parsed) ? parsed : parsed.clientes;
+    if (!Array.isArray(rows) || rows.length > 5000) throw new Error('El respaldo debe contener una lista de hasta 5.000 clientes.');
+    const seen = new Set();
+    return rows.map(row => {
+      if (!row || typeof row !== 'object') throw new Error('El respaldo contiene un cliente inválido.');
+      const out = Object.fromEntries(fields.map(field => [field, String(row[field] ?? (field === 'correo' ? row.email : field === 'sector_comercial' ? row.sector : '') ?? '').trim()]));
+      out.nombre_negocio ||= out.razon_social;
+      if (!out.nombre_negocio || !out.razon_social || !validRut(out.rut) || out.nombre_negocio.length > 180 || out.razon_social.length > 180 || out.telefono.length > 30 || out.correo.length > 254 || out.direccion.length > 300 || out.sector_comercial.length > 100) throw new Error('Hay registros incompletos, demasiado largos o con un RUT inválido. No se ha importado nada.');
+      if (out.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.correo)) throw new Error('Un correo del respaldo no es válido. Corrígelo antes de importar.');
+      const rut = normalizeRut(out.rut);
+      if (seen.has(rut)) throw new Error('El respaldo contiene RUT duplicados. No se ha importado nada.');
+      seen.add(rut);
+      out.client_ref = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.client_ref || row.id || '') ? row.client_ref || row.id : null;
+      return out;
     });
-    $('tituloFormulario').textContent = record ? 'Editar cliente' : 'Nuevo cliente';
-    form.classList.remove('oculto');
-    form.elements.razon_social.focus();
   }
-  function element(tag, text, className) {
-    const node = document.createElement(tag);
-    if (text !== undefined) node.textContent = text;
-    if (className) node.className = className;
-    return node;
+  const errorText = error => {
+    const code = error?.code;
+    if (code === '23505') return 'Ese RUT ya está registrado. Actualiza la lista y edita el cliente existente.';
+    if (code === '42501') return 'Tu cuenta no tiene permiso para esta operación. Revisa el perfil y la asignación del cliente.';
+    if (['42703','42883','PGRST202','PGRST204','42P01'].includes(code)) return 'Falta preparar la base de datos. Ejecuta el SQL de preparación y vuelve a actualizar.';
+    if (code === '23514') return 'Revisa el nombre del negocio y el RUT con su dígito verificador.';
+    if (code === 'conflict') return 'El cliente cambió en otro dispositivo o ya no tienes acceso. Actualiza la lista antes de continuar; el formulario conserva tus cambios.';
+    if (code === 'invalid_credentials') return 'Correo o contraseña incorrectos.';
+    if (code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión.';
+    return 'No se pudo completar la operación. Comprueba tu conexión e inténtalo nuevamente.';
+  };
+  return {fields,normalizeRut,searchText,validRut,canonicalRut,formatRut,fromCloud,toCloud,parseBackup,errorText};
+})();
+if (typeof module !== 'undefined') module.exports = OlimpoModel;
+
+</script>
+<script>
+'use strict';
+(() => {
+  const M = OlimpoModel;
+  const $ = id => document.getElementById(id);
+  const form = $('formCliente');
+  const COLS = 'id::text,nombre_negocio,razon_social,rut,telefono,email,direccion,sector,created_at,updated_at,vendedor_id,client_ref';
+  const LOCAL_KEY = 'olimpo.clientes.v1';
+  let client, user = null, profile = null, records = [], vendors = [];
+  let generation = 0, loadNumber = 0, busy = false, listReady = false;
+  let editing = null, pendingRef = null, originPanel = 'admin';
+  let lastLocalText = null;
+  const isAdmin = () => profile?.rol === 'administrador';
+  const current = stamp => stamp === generation && user && profile?.activo;
+  const message = text => { $('estadoClientes').textContent = text; };
+  const authMessage = text => { $('estadoSesion').textContent = text; };
+  function node(tag, text, className) {
+    const item = document.createElement(tag);
+    if (text !== undefined) item.textContent = text;
+    if (className) item.className = className;
+    return item;
+  }
+  function toggle(id, visible) { $(id).classList.toggle('oculto', !visible); }
+  function setBusy(value) {
+    busy = value;
+    $('nuevoCliente').disabled = value || !listReady;
+    $('actualizarClientes').disabled = value;
+    $('exportarClientes').disabled = value || !listReady;
+    $('importarLocales').disabled = value || !listReady;
+    $('importarArchivo').disabled = value || !listReady;
+    form.querySelectorAll('input,select,button').forEach(item => { item.disabled = value; });
+    $('listaClientes').querySelectorAll('button').forEach(item => { item.disabled = value || !listReady; });
+  }
+  function hideForm() {
+    toggle('formCliente', false); editing = null; pendingRef = null; form.reset();
+  }
+  function lock() {
+    generation++; loadNumber++; user = null; profile = null; records = []; vendors = [];
+    listReady = false; busy = false; hideForm();
+    $('listaClientes').replaceChildren(); $('selectorVendedor').replaceChildren();
+    $('conteoClientes').textContent = ''; $('totalClientes').textContent = '0';
+    $('quienSoy').textContent = ''; message(''); $('buscarCliente').value = '';
+    $('filtroSector').replaceChildren(new Option('Todos los sectores',''));
+    $('importarArchivo').value = ''; lastLocalText = null;
+    toggle('areaAplicacion', false); toggle('barraSesion', false); toggle('acceso', true);
+    $('loginSubmit').disabled = false;
+  }
+  function vendorLabel(id) {
+    const index = vendors.findIndex(v => v.id === id);
+    return index >= 0 ? `Vendedor ${index + 1} (…${id.slice(-6)})` : id ? `Asignado a …${id.slice(-6)}` : 'Sin asignar';
   }
   function render() {
-    $('totalClientes').textContent = clientes.length;
-    const previousSector = $('filtroSector').value;
-    const sectors = [...new Set(clientes.map(c => c.sector_comercial).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'es'));
-    $('filtroSector').replaceChildren(new Option('Todos los sectores', ''));
+    $('totalClientes').textContent = String(records.length);
+    const oldSector = $('filtroSector').value;
+    const sectors = [...new Set(records.map(c => c.sector_comercial).filter(Boolean))].sort((a,b) => a.localeCompare(b,'es'));
+    $('filtroSector').replaceChildren(new Option('Todos los sectores',''));
     $('sectoresClientes').replaceChildren();
-    sectors.forEach(sector => {
-      $('filtroSector').add(new Option(sector, sector));
-      $('sectoresClientes').append(new Option(sector, sector));
-    });
-    $('filtroSector').value = sectors.includes(previousSector) ? previousSector : '';
-    const query = searchText($('buscarCliente').value.trim());
-    const rutQuery = normalizeRut(query);
-    const filtered = clientes.filter(c =>
-      (!query || searchText(c.razon_social).includes(query) || (rutQuery && normalizeRut(c.rut).includes(rutQuery))) &&
-      (!$('filtroSector').value || c.sector_comercial === $('filtroSector').value)
-    ).sort((a,b) => a.razon_social.localeCompare(b.razon_social, 'es'));
-    $('conteoClientes').textContent = `${filtered.length} de ${clientes.length} clientes`;
+    for (const sector of sectors) {
+      $('filtroSector').add(new Option(sector,sector)); $('sectoresClientes').append(new Option(sector,sector));
+    }
+    $('filtroSector').value = sectors.includes(oldSector) ? oldSector : '';
+    const query = M.searchText($('buscarCliente').value.trim());
+    const rutQuery = M.normalizeRut(query);
+    const visible = records.filter(c => (!query || M.searchText(c.nombre_negocio + ' ' + c.razon_social).includes(query) || (rutQuery && M.normalizeRut(c.rut).includes(rutQuery))) && (!$('filtroSector').value || c.sector_comercial === $('filtroSector').value)).sort((a,b) => a.nombre_negocio.localeCompare(b.nombre_negocio,'es'));
+    $('conteoClientes').textContent = `${visible.length} de ${records.length} clientes accesibles`;
     $('listaClientes').replaceChildren();
-    if (!filtered.length) $('listaClientes').append(element('p', available ? (clientes.length ? 'No hay clientes que coincidan con tu búsqueda.' : 'Aún no tienes clientes. Registra el primero con “Nuevo cliente”.') : 'No se pudo cargar la lista. No se ha sobrescrito ningún registro.', 'card'));
-    filtered.forEach(record => {
-      const card = element('article', undefined, 'card cliente-card');
-      card.append(element('h3', record.razon_social));
-      const details = element('dl', undefined, 'cliente-datos');
-      [['RUT', record.rut], ['Teléfono', record.telefono], ['Correo', record.correo], ['Dirección', record.direccion], ['Sector', record.sector_comercial]].forEach(([label,value]) => {
-        details.append(element('dt', label), element('dd', value || 'Sin registrar'));
-      });
+    if (!visible.length) $('listaClientes').append(node('p', !listReady ? 'Actualiza la lista para cargar los clientes de Supabase.' : records.length ? 'No hay coincidencias con esta búsqueda.' : isAdmin() ? 'Aún no hay clientes. Registra uno o importa tu respaldo.' : 'Aún no tienes clientes asignados. Puedes registrar uno nuevo.', 'card'));
+    for (const record of visible) {
+      const card = node('article', undefined, 'card cliente-card');
+      card.append(node('h3',record.nombre_negocio));
+      const details = node('dl',undefined,'cliente-datos');
+      const values = [['Razón social',record.razon_social],['RUT',M.formatRut(record.rut)],['Teléfono',record.telefono],['Correo',record.correo],['Dirección',record.direccion],['Sector',record.sector_comercial]];
+      if (isAdmin()) values.push(['Vendedor',vendorLabel(record.vendedor_id)]);
+      values.forEach(([label,value]) => details.append(node('dt',label),node('dd',value || 'Sin registrar')));
       card.append(details);
-      const actions = element('div', undefined, 'acciones-clientes');
-      const edit = element('button', 'Editar'); edit.type = 'button';
-      edit.setAttribute('aria-label', `Editar ${record.razon_social}`);
-      edit.addEventListener('click', () => openForm(record));
-      const remove = element('button', 'Eliminar'); remove.type = 'button';
-      remove.setAttribute('aria-label', `Eliminar ${record.razon_social}`);
-      remove.addEventListener('click', () => {
-        if (!window.confirm(`¿Eliminar a ${record.razon_social}? Esta acción no se puede deshacer.`)) return;
-        commit(clientes.filter(c => c.id !== record.id), 'Cliente eliminado.');
-      });
-      actions.append(edit, remove); card.append(actions); $('listaClientes').append(card);
+      const actions = node('div',undefined,'acciones-clientes');
+      const edit = node('button','Editar'); edit.type = 'button';
+      edit.setAttribute('aria-label',`Editar ${record.nombre_negocio}`);
+      edit.addEventListener('click',() => openForm(record)); actions.append(edit);
+      if (isAdmin()) {
+        const remove = node('button','Eliminar'); remove.type = 'button';
+        remove.setAttribute('aria-label',`Eliminar ${record.nombre_negocio}`);
+        remove.addEventListener('click',() => deleteRecord(record)); actions.append(remove);
+      }
+      card.append(actions); $('listaClientes').append(card);
+    }
+    toggle('herramientasImportacion',isAdmin());
+    toggle('asignacionVendedor',isAdmin());
+    setBusy(busy);
+  }
+  async function fetchRows() {
+    const all = [];
+    for (let start = 0; ; start += 500) {
+      const {data,error} = await client.from('clientes').select(COLS).order('id',{ascending:true}).range(start,start + 499);
+      if (error) throw error;
+      all.push(...data.map(M.fromCloud));
+      if (data.length < 500) return all;
+    }
+  }
+  async function refresh() {
+    if (!user || !profile || busy) return;
+    const stamp = generation, request = ++loadNumber;
+    setBusy(true); message('Cargando clientes de Supabase…');
+    try {
+      const rows = await fetchRows();
+      if (!current(stamp) || request !== loadNumber) return;
+      records = rows; listReady = true; render();
+      message('Lista actualizada desde Supabase.');
+    } catch (error) {
+      if (!current(stamp) || request !== loadNumber) return;
+      listReady = false; render(); message(M.errorText(error));
+    } finally { if (current(stamp) && request === loadNumber) setBusy(false); }
+  }
+  function openForm(record) {
+    if (busy || !listReady) return;
+    form.reset(); editing = record || null; pendingRef = crypto.randomUUID();
+    M.fields.forEach(field => {
+      form.elements[field].setCustomValidity(''); form.elements[field].value = record?.[field] || '';
     });
+    const select = $('selectorVendedor');
+    select.replaceChildren(new Option('Sin asignar',''));
+    vendors.forEach(v => select.add(new Option(vendorLabel(v.id),v.id)));
+    if (record?.vendedor_id && !vendors.some(v => v.id === record.vendedor_id)) select.add(new Option(vendorLabel(record.vendedor_id),record.vendedor_id));
+    select.value = record?.vendedor_id || '';
+    $('tituloFormulario').textContent = record ? 'Editar cliente' : 'Nuevo cliente';
+    toggle('formCliente',true); form.elements.nombre_negocio.focus();
   }
-  function commit(next, success) {
-    try { clientesRepository.save(next); }
-    catch {
-      message('No se pudo guardar. El almacenamiento puede estar lleno o bloqueado, o la lista cambió en otra pestaña. Conserva los datos del formulario y revisa la otra pestaña antes de recargar.');
-      return;
-    }
-    clientes = next; hideForm(); render(); message(success);
-  }
-  window.abrirClientes = () => {
-    originPanel = $('btnAdmin').classList.contains('activo') ? 'admin' : 'vendedor';
-    $('admin').classList.add('oculto'); $('vendedor').classList.add('oculto');
-    $('clientes').classList.remove('oculto'); $('tituloClientes').focus();
-  };
-  $('volverClientes').addEventListener('click', () => mostrar(originPanel));
-  $('nuevoCliente').addEventListener('click', () => openForm());
-  $('cancelarCliente').addEventListener('click', () => { hideForm(); $('nuevoCliente').focus(); });
-  $('buscarCliente').addEventListener('input', render);
-  $('filtroSector').addEventListener('change', render);
-  fields.forEach(field => form.elements[field].addEventListener('input', () => form.elements[field].setCustomValidity('')));
-  form.addEventListener('submit', event => {
+  form.addEventListener('submit',async event => {
     event.preventDefault();
-    if (!available) return;
-    const record = Object.fromEntries(fields.map(field => [field, form.elements[field].value.trim()]));
-    if (!record.razon_social) {
-      form.elements.razon_social.setCustomValidity('Escribe la razón social.'); form.reportValidity(); return;
+    if (busy || !user || !listReady) return;
+    const record = Object.fromEntries(M.fields.map(field => [field,form.elements[field].value.trim()]));
+    for (const field of ['nombre_negocio','razon_social']) {
+      if (!record[field]) { form.elements[field].setCustomValidity('Completa este campo.'); form.reportValidity(); return; }
     }
-    const rutInput = form.elements.rut;
-    if (!validRut(record.rut)) { rutInput.setCustomValidity('Revisa el RUT y su dígito verificador.'); form.reportValidity(); return; }
-    if (clientes.some(c => c.id !== editingId && normalizeRut(c.rut) === normalizeRut(record.rut))) {
-      rutInput.setCustomValidity('Este RUT ya está registrado. Puedes editar el cliente existente.'); form.reportValidity(); return;
+    if (!M.validRut(record.rut)) { form.elements.rut.setCustomValidity('Revisa el RUT y su dígito verificador.'); form.reportValidity(); return; }
+    if (records.some(c => c.id !== editing?.id && M.normalizeRut(c.rut) === M.normalizeRut(record.rut))) {
+      form.elements.rut.setCustomValidity('Este RUT ya está registrado. Edita el cliente existente.'); form.reportValidity(); return;
     }
-    record.rut = formatRut(record.rut);
-    const existing = clientes.find(c => c.id === editingId);
-    record.id = editingId || crypto.randomUUID();
-    record.created_at = existing ? existing.created_at : new Date().toISOString();
-    record.updated_at = new Date().toISOString();
-    const next = existing ? clientes.map(c => c.id === editingId ? record : c) : [...clientes, record];
-    commit(next, existing ? 'Cliente actualizado.' : 'Cliente guardado en este navegador.');
+    const stamp = generation, existing = editing;
+    const owner = isAdmin() ? $('selectorVendedor').value : user.id;
+    const payload = M.toCloud(record,owner);
+    setBusy(true); message('Guardando en Supabase…');
+    try {
+      let result;
+      if (existing) {
+        result = await client.from('clientes').update(payload).eq('id',existing.id).eq('updated_at',existing.updated_at).select(COLS).maybeSingle();
+        if (!result.error && !result.data) throw {code:'conflict'};
+      } else {
+        result = await client.from('clientes').upsert({...payload,client_ref:pendingRef},{onConflict:'client_ref'}).select(COLS).single();
+      }
+      if (result.error) throw result.error;
+      if (!current(stamp)) return;
+      const saved = M.fromCloud(result.data);
+      records = [...records.filter(c => c.id !== saved.id),saved];
+      hideForm(); render(); message('Cliente guardado en Supabase. Disponible para las cuentas con permiso.');
+    } catch (error) { if (current(stamp)) message(M.errorText(error)); }
+    finally { if (current(stamp)) setBusy(false); }
   });
-  $('exportarClientes').addEventListener('click', () => {
-    if (!available) return;
-    const backup = { version: 1, exported_at: new Date().toISOString(), clientes };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
-    const link = element('a'); link.href = url; link.download = `olimpo-clientes-${new Date().toISOString().slice(0,10)}.json`;
-    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    message('Respaldo preparado para descargar. Guárdalo en un lugar seguro.');
-  });
-  window.addEventListener('storage', event => {
-    if (event.key === STORAGE_KEY || event.key === null) {
-      available = false; $('nuevoCliente').disabled = true; $('exportarClientes').disabled = true;
-      message('La lista cambió en otra pestaña. Recarga para ver la versión actual antes de seguir.');
-    }
-  });
-  try { clientes = clientesRepository.list(); }
-  catch {
-    available = false; $('nuevoCliente').disabled = true; $('exportarClientes').disabled = true;
-    message('No se pudieron leer los clientes guardados. Revisa el almacenamiento del navegador antes de continuar.');
+  async function deleteRecord(record) {
+    if (busy || !isAdmin() || !listReady || !confirm(`¿Eliminar a ${record.nombre_negocio} de Supabase? Esta acción no se puede deshacer.`)) return;
+    const stamp = generation; setBusy(true); message('Eliminando cliente…');
+    try {
+      const {data,error} = await client.from('clientes').delete().eq('id',record.id).eq('updated_at',record.updated_at).select('id::text');
+      if (error) throw error;
+      if (!data?.length) throw {code:'conflict'};
+      if (!current(stamp)) return;
+      records = records.filter(c => c.id !== record.id);
+      if (editing?.id === record.id) hideForm();
+      render(); message('Cliente eliminado de Supabase.');
+    } catch (error) { if (current(stamp)) message(M.errorText(error)); }
+    finally { if (current(stamp)) setBusy(false); }
   }
-  render();
+  async function importRecords(text) {
+    if (busy || !isAdmin() || !listReady) return;
+    let candidates;
+    try { candidates = M.parseBackup(text); }
+    catch (error) { message(error.message); return; }
+    const existingRuts = new Set(records.map(c => M.normalizeRut(c.rut)));
+    const existingRefs = new Set(records.map(c => c.client_ref).filter(Boolean));
+    const pending = candidates.filter(c => !existingRuts.has(M.normalizeRut(c.rut)) && (!c.client_ref || !existingRefs.has(c.client_ref)));
+    if (!pending.length) { message('No hay clientes nuevos en este respaldo. No se modificó ningún registro.'); return; }
+    if (!confirm(`¿Importar ${pending.length} clientes nuevos a Supabase? Quedarán sin vendedor asignado. Se omitirán ${candidates.length-pending.length} registros ya existentes y se conservará el respaldo local.`)) return;
+    const stamp = generation; let completed = 0; setBusy(true);
+    try {
+      for (const record of pending) {
+        if (!current(stamp)) return;
+        message(`Importando ${completed + 1} de ${pending.length}…`);
+        const payload = {...M.toCloud(record,null),client_ref:record.client_ref || crypto.randomUUID()};
+        const {data,error} = await client.from('clientes').upsert(payload,{onConflict:'client_ref',ignoreDuplicates:true}).select(COLS);
+        if (error) throw error;
+        if (!current(stamp)) return;
+        if (data.length) records.push(M.fromCloud(data[0]));
+        completed++;
+      }
+      if (current(stamp)) { render(); message(`Importación terminada: ${completed} clientes procesados. El respaldo local se conservó. Ya puedes asignar vendedor con “Editar”.`); }
+    } catch (error) { if (current(stamp)) { render(); message(`Importación detenida tras ${completed} clientes. ${M.errorText(error)} Actualiza antes de volver a intentarlo.`); } }
+    finally { if (current(stamp)) setBusy(false); }
+  }
+  window.mostrar = panel => {
+    if (!profile) return;
+    if (!isAdmin()) panel = 'vendedor';
+    toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
+    $('btnAdmin').classList.toggle('activo',panel === 'admin'); $('btnVendedor').classList.toggle('activo',panel === 'vendedor');
+  };
+  window.abrirClientes = () => {
+    if (!profile) return;
+    originPanel = $('btnAdmin').classList.contains('activo') ? 'admin' : 'vendedor';
+    toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
+    if (!listReady && !busy) refresh();
+  };
+  $('volverClientes').addEventListener('click',() => window.mostrar(originPanel));
+  $('nuevoCliente').addEventListener('click',() => openForm());
+  $('cancelarCliente').addEventListener('click',() => { if (!busy) { hideForm(); $('nuevoCliente').focus(); } });
+  $('actualizarClientes').addEventListener('click',refresh);
+  $('buscarCliente').addEventListener('input',render); $('filtroSector').addEventListener('change',render);
+  M.fields.forEach(field => form.elements[field].addEventListener('input',() => form.elements[field].setCustomValidity('')));
+  $('importarLocales').addEventListener('click',() => {
+    try {
+      lastLocalText = localStorage.getItem(LOCAL_KEY);
+      if (!lastLocalText) { message('No hay registros de la versión anterior en este navegador. Puedes seleccionar el respaldo JSON descargado.'); return; }
+      importRecords(lastLocalText);
+    } catch { message('No se pudo leer el respaldo local. Selecciona el archivo JSON descargado.'); }
+  });
+  $('importarArchivo').addEventListener('change',async event => {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file || !isAdmin()) return;
+    if (file.size > 10 * 1024 * 1024) { message('Selecciona un respaldo JSON de hasta 10 MB.'); return; }
+    const stamp = generation;
+    try { const text = await file.text(); if (current(stamp)) await importRecords(text); }
+    catch { if (current(stamp)) message('No se pudo leer el archivo seleccionado.'); }
+  });
+  $('exportarClientes').addEventListener('click',() => {
+    if (busy || !profile || !listReady) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify({version:2,source:'supabase',exported_at:new Date().toISOString(),clientes:records},null,2)],{type:'application/json'}));
+    const link = node('a'); link.href = url; link.download = `olimpo-clientes-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url),1000);
+    message('Respaldo preparado con los clientes cargados de tu cuenta. Pulsa “Actualizar” antes de exportar si hubo cambios desde otro dispositivo.');
+  });
+  async function activate(session) {
+    lock();
+    if (!session) { authMessage('Ingresa con el correo y la contraseña de tu usuario de Olimpo.'); return; }
+    const stamp = generation; $('loginSubmit').disabled = true; authMessage('Verificando tu cuenta…');
+    try {
+      const {data:userData,error:userError} = await client.auth.getUser();
+      if (userError || !userData.user) throw userError || Error('No user');
+      if (stamp !== generation) return;
+      const {data,error} = await client.from('perfiles').select('id,rol,activo').eq('id',userData.user.id).single();
+      if (error) throw error;
+      if (stamp !== generation) return;
+      if (!data.activo || !['administrador','vendedor'].includes(data.rol)) {
+        authMessage('Tu cuenta no tiene un perfil activo de administrador o vendedor. Contacta al administrador.');
+        $('loginSubmit').disabled = false; return;
+      }
+      user = userData.user; profile = data;
+      if (isAdmin()) {
+        const result = await client.rpc('olimpo_vendedores_disponibles');
+        if (!current(stamp)) return;
+        if (result.error) throw result.error;
+        vendors = result.data || [];
+      }
+      toggle('acceso',false); toggle('barraSesion',true); toggle('areaAplicacion',true); toggle('btnAdmin',isAdmin());
+      $('quienSoy').textContent = `${user.email || 'Usuario'} · ${profile.rol}`;
+      $('clientesAyuda').textContent = isAdmin() ? 'Guardado en Supabase. Puedes gestionar todos los clientes y asignarlos a un vendedor desde “Editar”.' : 'Guardado en Supabase. Solo puedes ver y editar tus clientes asignados; los nuevos quedarán a tu nombre.';
+      window.mostrar(isAdmin() ? 'admin' : 'vendedor'); render();
+      await refresh();
+    } catch (error) {
+      if (stamp !== generation) return;
+      // Fail closed even if the profile loaded but setup or authentication failed.
+      lock(); authMessage(M.errorText(error));
+    }
+  }
+  $('formAcceso').addEventListener('submit',async event => {
+    event.preventDefault(); if (!client) return;
+    $('loginSubmit').disabled = true; authMessage('Iniciando sesión…');
+    try {
+      const {error} = await client.auth.signInWithPassword({email:$('correoAcceso').value.trim(),password:$('claveAcceso').value});
+      if (error) throw error;
+      $('claveAcceso').value = '';
+    } catch (error) { authMessage(M.errorText(error)); $('loginSubmit').disabled = false; }
+  });
+  $('cerrarSesion').addEventListener('click',async () => {
+    if (busy && !confirm('Hay una operación en curso. ¿Cerrar sesión? Es posible que el cambio ya se haya guardado; compruébalo al volver a entrar.')) return;
+    lock(); authMessage('Cerrando sesión…');
+    try {
+      const {error} = await client.auth.signOut({scope:'local'});
+      if (error) throw error;
+      authMessage('Sesión cerrada en este dispositivo.');
+    } catch { authMessage('La vista está cerrada, pero no se pudo completar el cierre de sesión. Comprueba la conexión y vuelve a intentarlo.'); toggle('barraSesion',true); }
+  });
+  lock();
+  try {
+    if (!window.supabase) throw Error('SDK not loaded');
+    client = window.supabase.createClient('https://xszdkotzfnwcnemfojfx.supabase.co','sb_publishable_Z6ikCKdz0x2q1zK1xAaZ2w_HQJwuMHh',{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},
+      global:{fetch:async (url,options={}) => {
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        if (options.signal?.aborted) controller.abort();
+        else options.signal?.addEventListener('abort',abort,{once:true});
+        const timer = setTimeout(abort,20000);
+        try { return await fetch(url,{...options,signal:controller.signal}); }
+        finally { clearTimeout(timer); options.signal?.removeEventListener('abort',abort); }
+      }}
+    });
+    client.auth.onAuthStateChange((event,session) => {
+      // Keep Supabase calls outside this callback to avoid auth lock deadlocks.
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || (event === 'SIGNED_IN' && (!user || user.id !== session?.user.id))) {
+        if (event === 'SIGNED_OUT') lock();
+        setTimeout(() => { activate(session).catch(() => { lock(); authMessage('No se pudo cargar la sesión. Recarga e inténtalo nuevamente.'); }); },0);
+      }
+    });
+  } catch {
+    $('loginSubmit').disabled = true;
+    authMessage('No se pudo cargar la conexión con Supabase. Comprueba internet y recarga la página.');
+  }
 })();
 
 </script>
 </body>
-<!-- Preparación Supabase (no ejecutada):
--- Preparación únicamente: ejecutar cuando se configure el proyecto Supabase.
--- No contiene políticas de acceso: RLS deniega el acceso desde el navegador.
-create table if not exists public.clientes (
-  id uuid primary key default gen_random_uuid(),
-  razon_social text not null check (length(trim(razon_social)) between 1 and 180),
-  rut text not null unique,
-  telefono text not null default '',
-  correo text not null default '',
-  direccion text not null default '',
-  sector_comercial text not null default '',
-  vendedor_id uuid references auth.users(id),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint clientes_rut_canonico check (rut ~ '^[0-9]{1,8}-[0-9K]$')
-);
-alter table public.clientes enable row level security;
-create index if not exists clientes_sector_idx on public.clientes(sector_comercial);
-create index if not exists clientes_vendedor_idx on public.clientes(vendedor_id);
 
--->
 </html>
+
 
