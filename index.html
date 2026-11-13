@@ -6,6 +6,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Olimpo Ventas</title>
 <style>
+.pedido-campo {display:flex;flex-direction:column;gap:8px;margin:16px 0}
+#estadoPedidos {color:var(--oro);overflow-wrap:anywhere}
+#carritoPedido h4, #pedidos .numero, #pedidos p {overflow-wrap:anywhere}
+#pedidos summary {cursor:pointer;padding:12px 0}
 .acciones-clientes {display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
 .campos-clientes {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .campos-clientes label {display:flex;flex-direction:column;gap:8px;color:var(--texto);font-size:15px}
@@ -163,7 +167,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
     </div>
     <div class="card">
       <h3>Pedidos</h3>
-      <div class="numero">0</div>
+      <div class="numero" id="totalPedidosAdmin">0</div>
     </div>
     <div class="card">
       <h3>Clientes</h3>
@@ -178,7 +182,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div class="menu">
     <button onclick="abrirClientes()">👥 Clientes</button>
     <button onclick="abrirInventario()">📦 Inventario</button>
-    <button onclick="aviso()">🛒 Pedidos</button>
+    <button onclick="abrirPedidos()">🛒 Pedidos</button>
     <button onclick="aviso()">💰 Ventas y cobros</button>
     <button onclick="aviso()">🚚 Rutas de reparto</button>
     <button onclick="aviso()">📊 Rentabilidad</button>
@@ -205,12 +209,12 @@ input[type=file] {font-size:14px;padding:12px 8px}
     </div>
     <div class="card">
       <h3>Pedidos</h3>
-      <div class="numero">0</div>
+      <div class="numero" id="totalPedidosVendedor">0</div>
     </div>
   </div>
   <h3>Mis herramientas</h3>
   <div class="menu">
-    <button onclick="aviso()">➕ Nuevo pedido</button>
+    <button onclick="abrirPedidos()">🛒 Mis pedidos / Nuevo pedido</button>
     <button onclick="abrirClientes()">👥 Clientes</button>
     <button onclick="aviso()">📍 Ruta de visitas</button>
     <button onclick="aviso()">✅ Registrar visita</button>
@@ -261,6 +265,36 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <p id="conteoClientes" class="aviso" aria-live="polite"></p>
   <div id="listaClientes"></div>
 </section>
+
+<section id="pedidos" class="oculto" aria-labelledby="tituloPedidos">
+  <button type="button" id="volverPedidos">← Volver al panel</button>
+  <h2 id="tituloPedidos" tabindex="-1">Pedidos</h2>
+  <p class="aviso">El pedido guarda los precios actuales. Las existencias se descuentan al marcar la entrega y no se reservan mientras está pendiente.</p>
+  <p id="estadoPedidos" role="status" aria-live="polite"></p>
+  <div class="acciones-clientes"><button type="button" id="nuevoPedido">＋ Nuevo pedido</button><button type="button" id="actualizarPedidos">Actualizar</button></div>
+  <form id="formPedido" class="card oculto">
+    <h3>Nuevo pedido</h3>
+    <label class="pedido-campo">Buscar cliente<input id="buscarClientePedido" type="search" placeholder="Nombre, razón social o RUT"></label>
+    <label class="pedido-campo">Cliente *<select id="clientePedido" required><option value="">Selecciona un cliente</option></select></label>
+    <label class="pedido-campo">Buscar producto<input id="buscarCatalogoPedido" type="search" placeholder="Nombre del producto"></label>
+    <div class="campos-clientes">
+      <label>Producto<select id="productoPedido"><option value="">Selecciona un producto</option></select></label>
+      <label>Cantidad<input id="cantidadPedido" type="number" inputmode="decimal" min="0.001" max="1000000" step="0.001" value="1"></label>
+    </div>
+    <p id="datoProductoPedido" class="aviso"></p>
+    <button type="button" id="agregarLineaPedido">Agregar al pedido</button>
+    <div id="carritoPedido"></div>
+    <p class="numero" id="totalBorradorPedido">$0</p>
+    <label class="pedido-campo">Observaciones<input id="observacionesPedido" maxlength="1000" placeholder="Horario de entrega, indicaciones…"></label>
+    <div class="acciones-clientes"><button type="submit" class="activo" id="guardarPedido">Guardar pedido</button><button type="button" id="cancelarPedido">Cancelar</button></div>
+  </form>
+  <div class="card campos-clientes">
+    <label>Buscar pedido<input id="buscarPedido" type="search" placeholder="Número o cliente"></label>
+    <label>Estado<select id="filtroPedidos"><option value="todos">Todos</option><option value="pendiente">Pendientes</option><option value="confirmado">Confirmados</option><option value="entregado">Entregados</option><option value="cancelado">Cancelados</option></select></label>
+  </div>
+  <p id="resumenPedidos" class="aviso" aria-live="polite"></p>
+  <div id="listaPedidos"></div>
+</section>
 <section id="inventario" class="oculto" aria-labelledby="tituloInventario">
   <button type="button" id="volverInventario">← Volver al panel</button>
   <h2 id="tituloInventario" tabindex="-1">Inventario</h2>
@@ -286,7 +320,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
     </div>
     <datalist id="categoriasProductos"></datalist>
     <datalist id="unidadesProductos"><option value="unidad"><option value="caja"><option value="pack"><option value="kg"><option value="litro"></datalist>
-    <p class="aviso">Las existencias se ajustan manualmente en esta versión. Los pedidos todavía no descuentan stock.</p>
+    <p class="aviso">Las existencias se descuentan automáticamente al marcar un pedido como entregado. También puedes corregirlas manualmente.</p>
     <div class="acciones-clientes"><button type="submit" class="activo">Guardar producto</button><button type="button" id="cancelarProducto">Cancelar</button></div>
   </form>
   <div class="card campos-clientes">
@@ -298,11 +332,11 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div id="listaProductos"></div>
 </section>
 <p class="aviso">
-  Clientes e inventario conectados a la nube. Pedidos, ventas y los demás módulos continúan en demostración.
+  Clientes, inventario y pedidos conectados a la nube. Ventas, cobros y los demás módulos continúan en demostración.
 </p>
 </div>
 </main>
-<footer>OLIMPO VENTAS · Clientes e inventario en la nube · 3.1</footer>
+<footer>OLIMPO VENTAS · Clientes, inventario y pedidos · 3.2</footer>
 
 
 <script>function aviso(){alert("Esta función estará disponible en una próxima versión.");}</script>
@@ -402,6 +436,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     toggle('formCliente', false); editing = null; pendingRef = null; form.reset();
   }
   function lock() {
+    resetOrders();
     resetInventory();
     generation++; loadNumber++; user = null; profile = null; records = []; vendors = [];
     listReady = false; busy = false; hideForm();
@@ -567,13 +602,13 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   window.mostrar = panel => {
     if (!profile) return;
     if (!isAdmin()) panel = 'vendedor';
-    toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
+    toggle('pedidos',false); toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
     $('btnAdmin').classList.toggle('activo',panel === 'admin'); $('btnVendedor').classList.toggle('activo',panel === 'vendedor');
   };
   window.abrirClientes = () => {
     if (!profile) return;
     originPanel = $('btnAdmin').classList.contains('activo') ? 'admin' : 'vendedor';
-    toggle('inventario',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
+    toggle('pedidos',false); toggle('inventario',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
     if (!listReady && !busy) refresh();
   };
   $('volverClientes').addEventListener('click',() => window.mostrar(originPanel));
@@ -631,6 +666,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       $('clientesAyuda').textContent = isAdmin() ? 'Guardado en Supabase. Puedes gestionar todos los clientes y asignarlos a un vendedor desde “Editar”.' : 'Guardado en Supabase. Solo puedes ver y editar tus clientes asignados; los nuevos quedarán a tu nombre.';
       window.mostrar(isAdmin() ? 'admin' : 'vendedor'); render();
       await refresh();
+      if(current(stamp)) await refreshOrders();
     } catch (error) {
       if (stamp !== generation) return;
       // Fail closed even if the profile loaded but setup or authentication failed.
@@ -647,7 +683,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     } catch (error) { authMessage(M.errorText(error)); $('loginSubmit').disabled = false; }
   });
   $('cerrarSesion').addEventListener('click',async () => {
-    if ((busy || inventoryBusy) && !confirm('Hay una operación en curso. ¿Cerrar sesión? Es posible que el cambio ya se haya guardado; compruébalo al volver a entrar.')) return;
+    if ((busy || inventoryBusy || orderBusy || orderUncertain) && !confirm('Hay una operación en curso. ¿Cerrar sesión? Es posible que el cambio ya se haya guardado; compruébalo al volver a entrar.')) return;
     lock(); authMessage('Cerrando sesión…');
     try {
       const {error} = await client.auth.signOut({scope:'local'});
@@ -753,7 +789,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   }
   window.abrirInventario = () => {
     if (!isAdmin()) return;
-    toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
+    toggle('pedidos',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
     $('tituloInventario').focus(); refreshInventory();
   };
   $('volverInventario').addEventListener('click',() => window.mostrar('admin'));
@@ -814,6 +850,207 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       }
     } finally { if (current(stamp)) productBusy(false); }
   });
+
+
+  const orderForm = $('formPedido');
+  const ORDER_COLS = 'id::text,cliente_id::text,vendedor_id::text,fecha,estado,estado_pago,total,observaciones,revision::text,cliente_nombre,client_ref,detalle_pedidos(id::text,producto_id::text,cantidad,precio_unitario,subtotal,producto_nombre,producto_unidad)';
+  let orders = [], orderClients = [], orderProducts = [], cart = [];
+  let ordersReady = false, orderBusy = false, orderLoad = 0, orderOrigin = 'admin';
+  let orderRef = null, orderAttempt = null, orderUncertain = false;
+  const orderMessage = text => { $('estadoPedidos').textContent = text; };
+  const roundMoney = value => Math.round((value + Number.EPSILON)*100)/100;
+  const orderError = error => {
+    if (error?.code === '42501') return 'Tu cuenta no tiene permiso para esta operación o el cliente ya no está asignado a ti.';
+    if (error?.code === 'P4090') return 'El pedido cambió en otro dispositivo. Actualiza la lista antes de volver a intentarlo.';
+    if (error?.code === 'P4091') return 'No hay stock suficiente. Revisa las existencias y la cantidad solicitada.';
+    if (error?.code === 'P4092') return 'Cambió el precio de un producto. Actualiza y vuelve a preparar el pedido con los precios vigentes.';
+    if (error?.code === 'P4000') return 'Revisa el cliente, los productos y las cantidades. El pedido no se guardó.';
+    return 'No se pudo confirmar la operación. Comprueba tu conexión.';
+  };
+  function orderBusyState(value) {
+    orderBusy = value;
+    $('nuevoPedido').disabled = value || !ordersReady || orderUncertain;
+    $('actualizarPedidos').disabled = value;
+    orderForm.querySelectorAll('input,select,button').forEach(el => { el.disabled = value || orderUncertain; });
+    $('guardarPedido').disabled = value;
+    $('guardarPedido').textContent = orderUncertain ? 'Reintentar guardado' : 'Guardar pedido';
+    $('listaPedidos').querySelectorAll('button').forEach(el => { el.disabled = value || !ordersReady; });
+    $('carritoPedido').querySelectorAll('button').forEach(el => { el.disabled = value || orderUncertain; });
+  }
+  function closeOrderForm() {
+    toggle('formPedido',false); orderForm.reset(); cart = [];
+    orderRef = null; orderAttempt = null; orderUncertain = false;
+    $('carritoPedido').replaceChildren(); $('totalBorradorPedido').textContent = money(0);
+  }
+  function resetOrders() {
+    orderLoad++; orders = []; orderClients = []; orderProducts = [];
+    ordersReady = false; orderBusy = false; closeOrderForm();
+    $('listaPedidos').replaceChildren(); $('clientePedido').replaceChildren(new Option('Selecciona un cliente',''));
+    $('productoPedido').replaceChildren(new Option('Selecciona un producto',''));
+    $('buscarPedido').value = ''; $('filtroPedidos').value = 'todos';
+    $('buscarClientePedido').value = ''; $('buscarCatalogoPedido').value = '';
+    $('datoProductoPedido').textContent = ''; $('resumenPedidos').textContent = '';
+    $('totalPedidosAdmin').textContent = '0'; $('totalPedidosVendedor').textContent = '0';
+    orderMessage(''); toggle('pedidos',false); orderBusyState(false);
+  }
+  function populateOrderClients() {
+    const selected = $('clientePedido').value, query = M.searchText($('buscarClientePedido').value.trim());
+    const visible = orderClients.filter(c => c.id === selected || !query || M.searchText(c.nombre_negocio+' '+c.razon_social+' '+c.rut).includes(query)).sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio,'es'));
+    $('clientePedido').replaceChildren(new Option('Selecciona un cliente',''),...visible.map(c=>new Option(c.nombre_negocio+' · '+M.formatRut(c.rut),c.id)));
+    if (visible.some(c=>c.id===selected)) $('clientePedido').value=selected;
+  }
+  function productInfo() {
+    const product=orderProducts.find(p=>p.id===$('productoPedido').value);
+    $('datoProductoPedido').textContent=product ? money(product.precio_venta)+' por '+product.unidad+' · Stock actual: '+quantity(product.stock) : '';
+  }
+  function populateOrderProducts() {
+    const selected=$('productoPedido').value, query=M.searchText($('buscarCatalogoPedido').value.trim());
+    const visible=orderProducts.filter(p=>p.id===selected || !query || M.searchText(p.nombre).includes(query)).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+    $('productoPedido').replaceChildren(new Option('Selecciona un producto',''),...visible.map(p=>new Option(p.nombre+' · '+money(p.precio_venta),p.id)));
+    if(visible.some(p=>p.id===selected)) $('productoPedido').value=selected;
+    productInfo();
+  }
+  function renderCart() {
+    $('carritoPedido').replaceChildren();
+    for(const line of cart) {
+      const card=node('div',undefined,'card');
+      card.append(node('h4',line.nombre),node('p',quantity(line.cantidad)+' '+line.unidad+' × '+money(line.precio)+' = '+money(roundMoney(line.cantidad*line.precio))));
+      const remove=node('button','Quitar');remove.type='button'; remove.setAttribute('aria-label','Quitar '+line.nombre);
+      remove.addEventListener('click',()=>{if(!orderBusy && !orderUncertain){cart=cart.filter(c=>c.id!==line.id);renderCart();}});
+      card.append(remove);$('carritoPedido').append(card);
+    }
+    $('totalBorradorPedido').textContent=money(cart.reduce((sum,l)=>sum+roundMoney(l.cantidad*l.precio),0));
+    orderBusyState(orderBusy);
+  }
+  function renderOrders() {
+    const activeCount=orders.filter(o=>o.estado!=='cancelado').length;
+    $('totalPedidosAdmin').textContent=String(activeCount);$('totalPedidosVendedor').textContent=String(activeCount);
+    const query=M.searchText($('buscarPedido').value.trim()), filter=$('filtroPedidos').value;
+    const visible=orders.filter(o=>(filter==='todos'||o.estado===filter)&&(!query||M.searchText(o.id+' '+(o.cliente_nombre||'')).includes(query)));
+    const pending=orders.filter(o=>['pendiente','confirmado'].includes(o.estado));
+    $('resumenPedidos').textContent=ordersReady ? visible.length+' de '+orders.length+' pedidos · '+pending.length+' por entregar · Importe por entregar: '+money(pending.reduce((sum,o)=>sum+Number(o.total),0)) : '';
+    $('listaPedidos').replaceChildren();
+    if(!visible.length) $('listaPedidos').append(node('p',ordersReady ? orders.length ? 'No hay pedidos para estos filtros.' : 'Aún no hay pedidos. Registra el primero.' : 'Actualiza para cargar los pedidos.','card'));
+    for(const o of visible) {
+      const card=node('article',undefined,'card cliente-card');
+      card.append(node('h3','Pedido #'+o.id+' · '+(o.cliente_nombre||'Cliente #'+o.cliente_id)));
+      const date=new Date(o.fecha);
+      card.append(node('p',Number.isNaN(date.getTime()) ? '' : date.toLocaleString('es-CL',{timeZone:'America/Santiago'}),'aviso'));
+      card.append(node('p','Estado: '+o.estado+' · Pago: '+o.estado_pago),node('p',money(o.total),'numero'));
+      if(o.observaciones)card.append(node('p',o.observaciones));
+      const detail=node('details'), summary=node('summary','Ver productos'); detail.append(summary);
+      for(const line of o.detalle_pedidos||[]) detail.append(node('p',(line.producto_nombre||'Producto #'+line.producto_id)+' · '+quantity(line.cantidad)+' '+(line.producto_unidad||'')+' × '+money(line.precio_unitario)+' = '+money(roundMoney(Number(line.cantidad)*Number(line.precio_unitario)))));
+      card.append(detail);
+      if(isAdmin() && ['pendiente','confirmado'].includes(o.estado)) {
+        const actions=node('div',undefined,'acciones-clientes');
+        for(const [target,label] of o.estado==='pendiente' ? [['confirmado','Confirmar pedido'],['cancelado','Cancelar pedido']] : [['entregado','Marcar entrega'],['cancelado','Cancelar pedido']]) {
+          const button=node('button',label);button.type='button';
+          button.setAttribute('aria-label',label+' #'+o.id);
+          button.addEventListener('click',()=>changeOrderState(o,target));actions.append(button);
+        }
+        card.append(actions);
+      }
+      $('listaPedidos').append(card);
+    }
+    orderBusyState(orderBusy);
+  }
+  async function allOrderRows(table,cols,activeOnly=false) {
+    const result=[];
+    for(let start=0;;start+=500) {
+      let query=client.from(table).select(cols);
+      if(activeOnly) query=query.eq('activo',true);
+      const {data,error}=await query.order('id',{ascending:table!=='pedidos'}).range(start,start+499);
+      if(error)throw error;result.push(...data);if(data.length<500)return result;
+    }
+  }
+  async function refreshOrders() {
+    if(!user||!profile||orderBusy)return;
+    const stamp=generation, request=++orderLoad;
+    orderBusyState(true);orderMessage('Cargando pedidos, clientes y catálogo…');
+    try {
+      const [loaded,customers,catalog]=await Promise.all([
+        allOrderRows('pedidos',ORDER_COLS),fetchRows(),
+        allOrderRows('productos','id::text,nombre,unidad,precio_venta,stock',true)
+      ]);
+      if(!current(stamp)||request!==orderLoad)return;
+      orders=loaded;orderClients=customers;orderProducts=catalog;ordersReady=true;
+      populateOrderClients();populateOrderProducts();renderOrders();
+      orderMessage(orderUncertain ? 'Hay un guardado sin confirmar. Pulsa Reintentar guardado: se reutiliza la misma referencia para evitar duplicados.' : 'Pedidos actualizados desde Supabase.');
+    } catch(error) {
+      if(current(stamp)&&request===orderLoad){ordersReady=false;orders=[];renderOrders();orderMessage(orderError(error));}
+    } finally {if(current(stamp)&&request===orderLoad)orderBusyState(false);}
+  }
+  function openOrderForm() {
+    if(!ordersReady||orderBusy||orderUncertain)return;
+    if(!orderForm.classList.contains('oculto')&&cart.length&&!confirm('¿Descartar este borrador y comenzar otro pedido?'))return;
+    closeOrderForm();orderRef=crypto.randomUUID();
+    $('buscarClientePedido').value='';$('buscarCatalogoPedido').value='';populateOrderClients();populateOrderProducts();
+    toggle('formPedido',true);$('clientePedido').focus();
+    if(!orderClients.length)orderMessage('Registra primero un cliente en el módulo Clientes.');
+    else if(!orderProducts.length)orderMessage('No hay productos activos. El administrador debe agregarlos en Inventario.');
+  }
+  window.abrirPedidos=()=>{
+    if(!profile)return;
+    orderOrigin=$('btnAdmin').classList.contains('activo')?'admin':'vendedor';
+    toggle('admin',false);toggle('vendedor',false);toggle('clientes',false);toggle('inventario',false);toggle('pedidos',true);
+    $('tituloPedidos').focus();refreshOrders();
+  };
+  $('volverPedidos').addEventListener('click',()=>window.mostrar(orderOrigin));
+  $('nuevoPedido').addEventListener('click',openOrderForm);
+  $('actualizarPedidos').addEventListener('click',refreshOrders);
+  $('buscarPedido').addEventListener('input',renderOrders);$('filtroPedidos').addEventListener('change',renderOrders);
+  $('buscarClientePedido').addEventListener('input',populateOrderClients);$('buscarCatalogoPedido').addEventListener('input',populateOrderProducts);
+  $('productoPedido').addEventListener('change',productInfo);
+  $('cancelarPedido').addEventListener('click',()=>{if(!orderBusy&&!orderUncertain&&(!cart.length||confirm('¿Descartar el borrador del pedido?'))){closeOrderForm();orderBusyState(false);}});
+  $('agregarLineaPedido').addEventListener('click',()=>{
+    if(orderBusy||orderUncertain||!ordersReady)return;
+    const product=orderProducts.find(p=>p.id===$('productoPedido').value), qty=Number($('cantidadPedido').value);
+    if(!product){orderMessage('Selecciona un producto.');return;}
+    if(!Number.isFinite(qty)||qty<=0||qty>1000000||Math.abs(qty*1000-Math.round(qty*1000))>0.00001){orderMessage('Ingresa una cantidad mayor que cero, con hasta tres decimales.');return;}
+    const existing=cart.find(l=>l.id===product.id), amount=Math.round(((existing?.cantidad||0)+qty)*1000)/1000;
+    if(amount>Number(product.stock)||amount>1000000){orderMessage('La cantidad supera el stock disponible.');return;}
+    if(existing)existing.cantidad=amount;
+    else{if(cart.length>=100){orderMessage('Puedes agregar hasta 100 productos distintos.');return;}cart.push({id:product.id,nombre:product.nombre,unidad:product.unidad,precio:roundMoney(Number(product.precio_venta)),cantidad:qty});}
+    renderCart();orderMessage('Producto agregado al pedido.');$('cantidadPedido').value='1';
+  });
+  orderForm.addEventListener('submit',async event=>{
+    event.preventDefault();
+    if(orderBusy||!profile||!ordersReady)return;
+    if(!orderAttempt) {
+      if(!$('clientePedido').value||!cart.length){orderMessage('Selecciona un cliente y agrega al menos un producto.');return;}
+      orderAttempt={p_cliente:$('clientePedido').value,p_items:cart.map(l=>({producto_id:l.id,cantidad:String(l.cantidad),precio_esperado:l.precio.toFixed(2)})),p_observaciones:$('observacionesPedido').value.trim(),p_ref:orderRef};
+    }
+    const stamp=generation;orderBusyState(true);orderMessage('Guardando el pedido completo…');
+    try {
+      const {data,error}=await client.rpc('olimpo_crear_pedido',orderAttempt);
+      if(error)throw error;
+      if(!current(stamp))return;
+      const number=data.id, total=data.total;
+      closeOrderForm();orderBusyState(false);await refreshOrders();
+      if(current(stamp))orderMessage('Pedido #'+number+' guardado por '+money(total)+'. Quedó pendiente de confirmación; aún no se descontó stock.'+(!ordersReady?' Pulsa Actualizar para cargar la lista.':''));
+    } catch(error) {
+      if(!current(stamp))return;
+      const known=['P4000','P4091','P4092','42501','22P02','23514'].includes(error?.code);
+      orderUncertain=!known;
+      if(known)orderAttempt=null;
+      orderMessage(orderError(error)+(known ? '' : ' Pulsa Reintentar guardado; se conservará la misma referencia para evitar duplicados.'));
+    } finally {if(current(stamp))orderBusyState(false);}
+  });
+  async function changeOrderState(order,state) {
+    if(!isAdmin()||orderBusy||!ordersReady)return;
+    const prompt=state==='entregado'?'¿Marcar entregado el pedido #'+order.id+'? Se descontarán las existencias de todos sus productos.':state==='cancelado'?'¿Cancelar el pedido #'+order.id+'?':'¿Confirmar el pedido #'+order.id+'?';
+    if(!confirm(prompt))return;
+    const stamp=generation;orderBusyState(true);orderMessage('Actualizando estado…');
+    try {
+      const {error}=await client.rpc('olimpo_estado_pedido',{p_id:order.id,p_revision:order.revision,p_estado:state});
+      if(error)throw error;
+      if(!current(stamp))return;
+      inventoryReady=false;products=[];renderProducts();
+      orderBusyState(false);await refreshOrders();
+      if(current(stamp))orderMessage(state==='entregado'?'Entrega registrada y stock descontado. El pago sigue pendiente hasta registrar el cobro.':'Estado del pedido actualizado.');
+    } catch(error){if(current(stamp))orderMessage(orderError(error)+' Actualiza la lista para comprobar el estado.');}
+    finally{if(current(stamp))orderBusyState(false);}
+  }
 
   lock();
   try {
