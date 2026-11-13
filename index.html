@@ -177,7 +177,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <h3>Administración</h3>
   <div class="menu">
     <button onclick="abrirClientes()">👥 Clientes</button>
-    <button onclick="aviso()">📦 Inventario</button>
+    <button onclick="abrirInventario()">📦 Inventario</button>
     <button onclick="aviso()">🛒 Pedidos</button>
     <button onclick="aviso()">💰 Ventas y cobros</button>
     <button onclick="aviso()">🚚 Rutas de reparto</button>
@@ -261,12 +261,48 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <p id="conteoClientes" class="aviso" aria-live="polite"></p>
   <div id="listaClientes"></div>
 </section>
+<section id="inventario" class="oculto" aria-labelledby="tituloInventario">
+  <button type="button" id="volverInventario">← Volver al panel</button>
+  <h2 id="tituloInventario" tabindex="-1">Inventario</h2>
+  <p class="aviso">Productos guardados en la nube. Los precios se registran en pesos chilenos.</p>
+  <p id="estadoInventario" role="status" aria-live="polite"></p>
+  <div class="acciones-clientes">
+    <button type="button" id="nuevoProducto">＋ Nuevo producto</button>
+    <button type="button" id="actualizarInventario">Actualizar</button>
+  </div>
+  <form id="formProducto" class="card oculto">
+    <h3 id="tituloProducto">Nuevo producto</h3>
+    <p class="aviso">* Campo obligatorio. Usa la misma unidad para precios y existencias.</p>
+    <div class="campos-clientes">
+      <label>Nombre *<input name="nombre" required maxlength="180"></label>
+      <label>Código<input name="codigo" maxlength="80" placeholder="Ej.: CONF001"></label>
+      <label>Categoría<input name="categoria" maxlength="100" list="categoriasProductos"></label>
+      <label>Unidad *<input name="unidad" required maxlength="40" list="unidadesProductos" value="unidad" placeholder="unidad, caja, kg…"></label>
+      <label>Precio de compra ($) *<input name="precio_compra" type="number" inputmode="decimal" min="0" max="1000000000" step="0.01" required value="0"></label>
+      <label>Precio de venta ($) *<input name="precio_venta" type="number" inputmode="decimal" min="0" max="1000000000" step="0.01" required value="0"></label>
+      <label>Existencias actuales *<input name="stock" type="number" inputmode="decimal" min="0" max="1000000000" step="0.001" required value="0"></label>
+      <label>Stock mínimo *<input name="stock_minimo" type="number" inputmode="decimal" min="0" max="1000000000" step="0.001" required value="0"></label>
+      <label>Estado<select name="activo"><option value="true">Activo</option><option value="false">Inactivo</option></select></label>
+    </div>
+    <datalist id="categoriasProductos"></datalist>
+    <datalist id="unidadesProductos"><option value="unidad"><option value="caja"><option value="pack"><option value="kg"><option value="litro"></datalist>
+    <p class="aviso">Las existencias se ajustan manualmente en esta versión. Los pedidos todavía no descuentan stock.</p>
+    <div class="acciones-clientes"><button type="submit" class="activo">Guardar producto</button><button type="button" id="cancelarProducto">Cancelar</button></div>
+  </form>
+  <div class="card campos-clientes">
+    <label>Buscar producto<input id="buscarProducto" type="search" placeholder="Nombre, código o categoría"></label>
+    <label>Mostrar<select id="filtroInventario"><option value="activos">Productos activos</option><option value="bajo">Stock bajo (activos)</option><option value="todos">Todos</option><option value="inactivos">Inactivos</option></select></label>
+  </div>
+  <p id="resumenInventario" class="aviso"></p>
+  <p id="conteoProductos" class="aviso" aria-live="polite"></p>
+  <div id="listaProductos"></div>
+</section>
 <p class="aviso">
-  Clientes conectados a la nube. Inventario, pedidos, ventas y los demás módulos continúan en demostración.
+  Clientes e inventario conectados a la nube. Pedidos, ventas y los demás módulos continúan en demostración.
 </p>
 </div>
 </main>
-<footer>OLIMPO VENTAS · Clientes en la nube · 3.0</footer>
+<footer>OLIMPO VENTAS · Clientes e inventario en la nube · 3.1</footer>
 
 
 <script>function aviso(){alert("Esta función estará disponible en una próxima versión.");}</script>
@@ -366,6 +402,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     toggle('formCliente', false); editing = null; pendingRef = null; form.reset();
   }
   function lock() {
+    resetInventory();
     generation++; loadNumber++; user = null; profile = null; records = []; vendors = [];
     listReady = false; busy = false; hideForm();
     $('listaClientes').replaceChildren(); $('selectorVendedor').replaceChildren();
@@ -530,13 +567,13 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   window.mostrar = panel => {
     if (!profile) return;
     if (!isAdmin()) panel = 'vendedor';
-    toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
+    toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
     $('btnAdmin').classList.toggle('activo',panel === 'admin'); $('btnVendedor').classList.toggle('activo',panel === 'vendedor');
   };
   window.abrirClientes = () => {
     if (!profile) return;
     originPanel = $('btnAdmin').classList.contains('activo') ? 'admin' : 'vendedor';
-    toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
+    toggle('inventario',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
     if (!listReady && !busy) refresh();
   };
   $('volverClientes').addEventListener('click',() => window.mostrar(originPanel));
@@ -610,7 +647,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     } catch (error) { authMessage(M.errorText(error)); $('loginSubmit').disabled = false; }
   });
   $('cerrarSesion').addEventListener('click',async () => {
-    if (busy && !confirm('Hay una operación en curso. ¿Cerrar sesión? Es posible que el cambio ya se haya guardado; compruébalo al volver a entrar.')) return;
+    if ((busy || inventoryBusy) && !confirm('Hay una operación en curso. ¿Cerrar sesión? Es posible que el cambio ya se haya guardado; compruébalo al volver a entrar.')) return;
     lock(); authMessage('Cerrando sesión…');
     try {
       const {error} = await client.auth.signOut({scope:'local'});
@@ -618,6 +655,166 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       authMessage('Sesión cerrada en este dispositivo.');
     } catch { authMessage('La vista está cerrada, pero no se pudo completar el cierre de sesión. Comprueba la conexión y vuelve a intentarlo.'); toggle('barraSesion',true); }
   });
+
+  // Inventory shares the verified session and never stores a separate copy of products.
+  const productForm = $('formProducto');
+  const PRODUCT_COLS = 'id::text,codigo,nombre,categoria,unidad,precio_compra,precio_venta,stock,stock_minimo,activo,revision::text,client_ref';
+  const productTextFields = ['nombre','codigo','categoria','unidad'];
+  const productNumbers = ['precio_compra','precio_venta','stock','stock_minimo'];
+  let products = [], inventoryReady = false, inventoryBusy = false, inventoryLoad = 0;
+  let editingProduct = null, productRef = null, uncertainProduct = false;
+  const inventoryMessage = text => { $('estadoInventario').textContent = text; };
+  const productError = error => {
+    if (error?.code === '42501') return 'Tu cuenta no tiene permiso para gestionar inventario.';
+    if (error?.code === '23514') return 'Revisa los precios y las existencias del producto.';
+    if (['42703','42883','PGRST202','PGRST204','42P01'].includes(error?.code)) return 'No se pudo acceder a la estructura de productos. Contacta al administrador.';
+    return 'No se pudo completar la operación. Comprueba tu conexión e inténtalo nuevamente.';
+  };
+  const money = value => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:2}).format(Number(value));
+  const quantity = value => new Intl.NumberFormat('es-CL',{maximumFractionDigits:3}).format(Number(value));
+  function productBusy(value) {
+    inventoryBusy = value;
+    $('nuevoProducto').disabled = value || !inventoryReady || !isAdmin();
+    $('actualizarInventario').disabled = value;
+    productForm.querySelectorAll('input,select,button').forEach(item => { item.disabled = value; });
+    $('listaProductos').querySelectorAll('button').forEach(item => { item.disabled = value || !inventoryReady; });
+  }
+  function closeProductForm() {
+    toggle('formProducto',false); productForm.reset(); editingProduct = null; productRef = null; uncertainProduct = false;
+  }
+  function resetInventory() {
+    inventoryLoad++; products = []; inventoryReady = false; inventoryBusy = false;
+    closeProductForm(); $('listaProductos').replaceChildren();
+    $('buscarProducto').value = ''; $('filtroInventario').value = 'activos';
+    $('categoriasProductos').replaceChildren(); $('conteoProductos').textContent = '';
+    $('resumenInventario').textContent = ''; inventoryMessage('');
+    toggle('inventario',false); productBusy(false);
+  }
+  function renderProducts() {
+    const active = products.filter(p => p.activo);
+    const low = active.filter(p => Number(p.stock) <= Number(p.stock_minimo));
+    $('resumenInventario').textContent = inventoryReady
+      ? active.length + ' productos activos · ' + low.length + ' con stock bajo · Valor al costo: ' + money(active.reduce((sum,p) => sum + Number(p.stock)*Number(p.precio_compra),0)) : '';
+    const categories = [...new Set(products.map(p => p.categoria).filter(Boolean))].sort();
+    $('categoriasProductos').replaceChildren(...categories.map(c => new Option(c,c)));
+    const query = M.searchText($('buscarProducto').value.trim()), filter = $('filtroInventario').value;
+    const visible = products.filter(p =>
+      (!query || M.searchText([p.nombre,p.codigo,p.categoria].join(' ')).includes(query)) &&
+      (filter === 'todos' || filter === 'inactivos' && !p.activo || filter === 'activos' && p.activo || filter === 'bajo' && p.activo && Number(p.stock) <= Number(p.stock_minimo))
+    ).sort((a,b) => a.nombre.localeCompare(b.nombre,'es'));
+    $('conteoProductos').textContent = inventoryReady ? visible.length + ' de ' + products.length + ' productos' : '';
+    $('listaProductos').replaceChildren();
+    if (!visible.length) $('listaProductos').append(node('p', !inventoryReady ? 'Pulsa Actualizar para cargar el inventario.' : products.length ? 'No hay productos para estos filtros.' : 'Aún no hay productos. Registra el primero.', 'card'));
+    for (const p of visible) {
+      const card = node('article',undefined,'card cliente-card');
+      card.append(node('h3',p.nombre));
+      card.append(node('p',!p.activo ? 'Inactivo' : Number(p.stock) <= Number(p.stock_minimo) ? '⚠ Stock bajo' : 'Activo','aviso'));
+      const dl = node('dl',undefined,'cliente-datos');
+      const margin = Number(p.precio_venta) > 0 ? quantity((Number(p.precio_venta)-Number(p.precio_compra))/Number(p.precio_venta)*100) + '%' : 'Sin precio de venta';
+      for (const [label,value] of [['Código',p.codigo || 'Sin código'],['Categoría',p.categoria || 'Sin categoría'],['Unidad',p.unidad],['Compra',money(p.precio_compra)],['Venta',money(p.precio_venta)],['Margen bruto',margin],['Stock',quantity(p.stock)],['Mínimo',quantity(p.stock_minimo)]]) dl.append(node('dt',label),node('dd',value));
+      card.append(dl);
+      if (isAdmin()) {
+        const edit = node('button','Editar producto'); edit.type = 'button'; edit.setAttribute('aria-label','Editar ' + p.nombre);
+        edit.addEventListener('click',() => openProduct(p)); card.append(edit);
+      }
+      $('listaProductos').append(card);
+    }
+    productBusy(inventoryBusy);
+  }
+  async function refreshInventory() {
+    if (!isAdmin() || inventoryBusy) return;
+    const stamp = generation, request = ++inventoryLoad;
+    productBusy(true); inventoryMessage('Cargando inventario…');
+    try {
+      const rows = [];
+      for (let start = 0; ; start += 500) {
+        const {data,error} = await client.from('productos').select(PRODUCT_COLS).order('id',{ascending:true}).range(start,start+499);
+        if (error) throw error;
+        if (!current(stamp) || request !== inventoryLoad) return;
+        rows.push(...data);
+        if (data.length < 500) break;
+      }
+      products = rows; inventoryReady = true; renderProducts(); inventoryMessage('Inventario actualizado desde Supabase.');
+    } catch (error) {
+      if (current(stamp) && request === inventoryLoad) {
+        inventoryReady = false; products = []; renderProducts(); inventoryMessage(productError(error));
+      }
+    } finally { if (current(stamp) && request === inventoryLoad) productBusy(false); }
+  }
+  function openProduct(record) {
+    if (!isAdmin() || !inventoryReady || inventoryBusy) return;
+    closeProductForm(); editingProduct = record || null; productRef = crypto.randomUUID();
+    for (const field of [...productTextFields,...productNumbers,'activo']) {
+      productForm.elements[field].value = record?.[field] ?? (field === 'unidad' ? 'unidad' : field === 'activo' ? 'true' : productNumbers.includes(field) ? '0' : '');
+      productForm.elements[field].setCustomValidity('');
+    }
+    $('tituloProducto').textContent = record ? 'Editar producto' : 'Nuevo producto';
+    toggle('formProducto',true); productForm.elements.nombre.focus();
+  }
+  window.abrirInventario = () => {
+    if (!isAdmin()) return;
+    toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
+    $('tituloInventario').focus(); refreshInventory();
+  };
+  $('volverInventario').addEventListener('click',() => window.mostrar('admin'));
+  $('nuevoProducto').addEventListener('click',() => openProduct());
+  $('cancelarProducto').addEventListener('click',() => { if (!inventoryBusy) { closeProductForm(); $('nuevoProducto').focus(); } });
+  $('actualizarInventario').addEventListener('click',refreshInventory);
+  $('buscarProducto').addEventListener('input',renderProducts);
+  $('filtroInventario').addEventListener('change',renderProducts);
+  for (const input of productForm.querySelectorAll('input,select')) input.addEventListener('input',() => input.setCustomValidity(''));
+  productForm.addEventListener('submit',async event => {
+    event.preventDefault();
+    if (!isAdmin() || !inventoryReady || inventoryBusy || !productForm.reportValidity()) return;
+    const payload = {};
+    for (const field of productTextFields) {
+      payload[field] = productForm.elements[field].value.trim();
+      if (['nombre','unidad'].includes(field) && !payload[field]) {
+        productForm.elements[field].setCustomValidity('Completa este campo.'); productForm.reportValidity(); return;
+      }
+    }
+    payload.codigo = payload.codigo || null; payload.categoria = payload.categoria || null;
+    for (const field of productNumbers) {
+      payload[field] = Number(productForm.elements[field].value);
+      if (!Number.isFinite(payload[field]) || payload[field] < 0 || payload[field] > 1000000000) {
+        productForm.elements[field].setCustomValidity('Ingresa un número válido mayor o igual a cero.'); productForm.reportValidity(); return;
+      }
+    }
+    payload.activo = productForm.elements.activo.value === 'true';
+    if (payload.codigo && products.some(p => p.id !== editingProduct?.id && p.codigo === payload.codigo)) {
+      productForm.elements.codigo.setCustomValidity('Este código ya pertenece a otro producto.'); productForm.reportValidity(); return;
+    }
+    const stamp = generation, existing = editingProduct;
+    productBusy(true); inventoryMessage('Guardando producto…');
+    try {
+      let result;
+      // A retry after an ambiguous network failure reads the unique reference first.
+      // It must never overwrite a product that may already have been saved.
+      if (!existing && uncertainProduct) {
+        const lookup = await client.from('productos').select(PRODUCT_COLS).eq('client_ref',productRef).maybeSingle();
+        if (lookup.error) throw lookup.error;
+        if (lookup.data) result = lookup;
+      }
+      if (!result) {
+        uncertainProduct = true;
+        result = existing
+          ? await client.from('productos').update(payload).eq('id',existing.id).eq('revision',existing.revision).select(PRODUCT_COLS).maybeSingle()
+          : await client.from('productos').insert({...payload,client_ref:productRef}).select(PRODUCT_COLS).single();
+      }
+      if (result.error) throw result.error;
+      if (!result.data) {
+        inventoryReady = false; throw {code:'conflict'};
+      }
+      if (!current(stamp)) return;
+      products = [...products.filter(p => p.id !== result.data.id),result.data];
+      closeProductForm(); renderProducts(); inventoryMessage('Producto guardado en Supabase. Si no aparece en la lista, revisa los filtros.');
+    } catch (error) {
+      if (current(stamp)) {
+        inventoryMessage(error.code === '23505' ? 'El código ya existe o el producto ya se guardó. Actualiza el inventario para comprobarlo antes de reintentar.' : error.code === 'conflict' ? 'Otro usuario modificó este producto. Actualiza el inventario y vuelve a abrirlo para editar.' : productError(error) + ' Si hubo un problema de conexión, actualiza antes de repetir el cambio.');
+      }
+    } finally { if (current(stamp)) productBusy(false); }
+  });
+
   lock();
   try {
     if (!window.supabase) throw Error('SDK not loaded');
