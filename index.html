@@ -122,6 +122,30 @@ input[type=file] {font-size:14px;padding:12px 8px}
 .cliente-datos {grid-template-columns:105px minmax(0,1fr)}
 @media(max-width:480px) {.cliente-datos {grid-template-columns:90px minmax(0,1fr)}}
 </style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+<style>
+/* Olimpo Rutas 1.0 */
+.ruta-panel{border:1px solid #5b4930;border-radius:16px;padding:16px;background:#1b1a20;margin:16px 0}
+.ruta-toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.ruta-toolbar button{padding:10px 12px;font-size:14px}
+.ruta-candidatos{max-height:250px;overflow:auto;border:1px solid #594b36;border-radius:10px;padding:9px}
+.ruta-choice{display:flex;align-items:center;gap:10px;border-bottom:1px solid #3e352a;padding:9px 4px;font-size:14px;line-height:1.35}
+.ruta-choice input{flex:0 0 20px;width:20px;height:20px;accent-color:#d4aa56}
+#rutaMapa{height:325px;width:100%;border-radius:13px;background:#242830;z-index:0}
+.ruta-parada{border:1px solid #51432e;border-left:5px solid #bd5252;border-radius:11px;padding:12px;margin:10px 0;background:#17171b}
+.ruta-parada.visitado,.ruta-parada.compro{border-left-color:#46ab70}
+.ruta-parada.no_compro,.ruta-parada.no_atendido{border-left-color:#da9e45}
+.ruta-parada h4{margin:0 0 8px;overflow-wrap:anywhere}
+.ruta-parada p{margin:4px 0;font-size:13px;overflow-wrap:anywhere}
+.ruta-parada select{max-width:100%}
+.ruta-mapa-marca{display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid white;font-weight:bold;color:#fff;background:#ba4545;box-shadow:0 1px 6px #222;width:28px;height:28px}
+.ruta-mapa-marca.verde{background:#248953}.ruta-mapa-marca.ambar{background:#aa7a23}
+.ruta-enlace{display:inline-block;color:#f0c878;padding:10px 5px;overflow-wrap:anywhere}
+.ruta-progress{font-weight:bold;color:var(--oro)}
+.ruta-mensaje{color:var(--oro);line-height:1.5;overflow-wrap:anywhere}
+@media(max-width:480px){#rutaMapa{height:290px}.ruta-panel{padding:12px}}
+</style>
 </head>
 <body>
 <header>
@@ -187,7 +211,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
     <button onclick="abrirInventario()">📦 Inventario</button>
     <button onclick="abrirPedidos()">🛒 Pedidos</button>
     <button onclick="abrirCobros()">💰 Ventas y cobros</button>
-    <button onclick="aviso()">🚚 Rutas de reparto</button>
+    <button onclick="abrirRutas()">🚚 Rutas de reparto</button>
     <button onclick="aviso()">📊 Rentabilidad</button>
     <button onclick="aviso()">👤 Vendedores</button>
     <button onclick="aviso()">🧾 Facturación SII</button>
@@ -219,12 +243,46 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div class="menu">
     <button onclick="abrirPedidos()">🛒 Mis pedidos / Nuevo pedido</button>
     <button onclick="abrirClientes()">👥 Clientes</button>
-    <button onclick="aviso()">📍 Ruta de visitas</button>
-    <button onclick="aviso()">✅ Registrar visita</button>
+    <button onclick="abrirRutas()">📍 Ruta de visitas</button>
+    <button onclick="abrirRutas()">✅ Registrar visita</button>
     <button onclick="abrirCobros()">💳 Ventas y cobros</button>
     <button onclick="aviso()">📷 Comprobante de pago</button>
     <button onclick="aviso()">📈 Mis comisiones</button>
   </div>
+</section>
+
+<section id="rutas" class="oculto" aria-labelledby="tituloRutas">
+ <button type="button" id="volverRutas">← Volver al panel</button>
+ <h2 id="tituloRutas" tabindex="-1">🚚 Rutas de reparto</h2>
+ <p class="aviso">Primera versión tipo Spoke: planifica visitas a tus clientes, guárdalas en Supabase, ordénalas y registra resultados. Cada usuario ve sus propias rutas.</p>
+ <p id="estadoRutas" class="ruta-mensaje" role="status" aria-live="polite"></p>
+ <div class="ruta-panel">
+  <h3>Preparar recorrido</h3>
+  <div class="campos-clientes">
+   <label>Nombre de la ruta<input id="rutaNombre" value="Ruta Centro" maxlength="120" required></label>
+   <label>Fecha<input id="rutaFecha" type="date" required></label>
+   <label class="ancho">Salida desde<input id="rutaOrigen" maxlength="250" value="Av. Libertador Bernardo O'Higgins 2841, Rancagua, Chile"></label>
+   <label>Sector<select id="rutaSector"><option value="">Todos los sectores</option></select></label>
+   <label>Buscar cliente<input id="rutaBuscarCliente" type="search" placeholder="Nombre o dirección"></label>
+  </div>
+  <p class="aviso" id="rutaConteoSeleccion">Selecciona los clientes que visitarás.</p>
+  <div class="ruta-toolbar"><button id="rutaMarcarTodos" type="button">Seleccionar visibles</button><button id="rutaLimpiarSeleccion" type="button">Limpiar selección</button></div>
+  <div id="rutaCandidatos" class="ruta-candidatos" aria-label="Clientes seleccionables"></div>
+  <div class="ruta-toolbar"><button id="rutaCrear" class="activo" type="button">＋ Crear ruta</button><button id="rutaAgregar" type="button">Añadir seleccionados a ruta actual</button></div>
+ </div>
+ <div class="ruta-panel">
+  <h3>Mis rutas guardadas</h3>
+  <div class="campos-clientes">
+   <label>Seleccionar ruta<select id="rutaActual"><option value="">Selecciona una ruta</option></select></label>
+  </div>
+  <div class="ruta-toolbar"><button type="button" id="rutaActualizar">Actualizar desde Supabase</button><button type="button" id="rutaBorrar">Eliminar ruta</button></div>
+  <p id="rutaResumen" class="ruta-progress"></p>
+  <div class="ruta-toolbar"><button type="button" id="rutaOrdenar">Ordenar por cercanía aproximada</button><button type="button" id="rutaUbicarOrigen">📍 Ubicar punto de salida</button></div>
+  <p class="aviso">La ordenación usa distancia en línea recta y NO reemplaza una ruta optimizada por calles. El mapa requiere internet; los puntos se ubican uno a uno con confirmación.</p>
+  <div id="rutaMapa" role="region" aria-label="Mapa de paradas de la ruta"></div>
+  <p class="aviso" id="rutaMapaEstado">Las paradas sin ubicación pueden localizarse desde la lista.</p>
+  <div id="rutaParadas"></div>
+ </div>
 </section>
 <section id="clientes" class="oculto" aria-labelledby="tituloClientes">
   <button type="button" id="volverClientes">← Volver al panel</button>
@@ -367,14 +425,15 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div id="listaProductos"></div>
 </section>
 <p class="aviso">
-  Clientes, inventario, pedidos y cobros conectados a la nube. Rutas, rentabilidad, comisiones y facturación SII continúan en preparación.
+  Clientes, inventario, pedidos, cobros y planificación de rutas conectados a la nube. Optimización vial avanzada, rentabilidad, comisiones y facturación SII continúan en preparación.
 </p>
 </div>
 </main>
-<footer>OLIMPO VENTAS · Ventas y cobros · 3.3</footer>
+<footer>OLIMPO VENTAS · Ventas, cobros y rutas · 3.4</footer>
 
 
 <script>function aviso(){alert("Esta función estará disponible en una próxima versión.");}</script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
@@ -471,6 +530,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     toggle('formCliente', false); editing = null; pendingRef = null; form.reset();
   }
   function lock() {
+    resetRoutes();
     resetPayments();
     resetOrders();
     resetInventory();
@@ -638,13 +698,13 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   window.mostrar = panel => {
     if (!profile) return;
     if (!isAdmin()) panel = 'vendedor';
-    toggle('cobros',false); toggle('pedidos',false); toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
+    toggle('rutas',false); toggle('cobros',false); toggle('pedidos',false); toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
     $('btnAdmin').classList.toggle('activo',panel === 'admin'); $('btnVendedor').classList.toggle('activo',panel === 'vendedor');
   };
   window.abrirClientes = () => {
     if (!profile) return;
     originPanel = $('btnAdmin').classList.contains('activo') ? 'admin' : 'vendedor';
-    toggle('cobros',false); toggle('pedidos',false); toggle('inventario',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
+    toggle('rutas',false); toggle('cobros',false); toggle('pedidos',false); toggle('inventario',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',true); $('tituloClientes').focus();
     if (!listReady && !busy) refresh();
   };
   $('volverClientes').addEventListener('click',() => window.mostrar(originPanel));
@@ -826,7 +886,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   }
   window.abrirInventario = () => {
     if (!isAdmin()) return;
-    toggle('cobros',false); toggle('pedidos',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
+    toggle('rutas',false); toggle('cobros',false); toggle('pedidos',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
     $('tituloInventario').focus(); refreshInventory();
   };
   $('volverInventario').addEventListener('click',() => window.mostrar('admin'));
@@ -1033,7 +1093,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   window.abrirPedidos=()=>{
     if(!profile)return;
     orderOrigin=$('btnAdmin').classList.contains('activo')?'admin':'vendedor';
-    toggle('cobros',false);toggle('admin',false);toggle('vendedor',false);toggle('clientes',false);toggle('inventario',false);toggle('pedidos',true);
+    toggle('rutas',false);toggle('cobros',false);toggle('admin',false);toggle('vendedor',false);toggle('clientes',false);toggle('inventario',false);toggle('pedidos',true);
     $('tituloPedidos').focus();refreshOrders();
   };
   $('volverPedidos').addEventListener('click',()=>window.mostrar(orderOrigin));
@@ -1219,7 +1279,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
  window.abrirCobros=async(id='')=>{
   if(!profile)return;
   paymentOrigin=$('btnAdmin').classList.contains('activo')?'admin':'vendedor';
-  for(const panel of ['admin','vendedor','clientes','inventario','pedidos'])toggle(panel,false);
+  for(const panel of ['admin','vendedor','clientes','inventario','pedidos','rutas'])toggle(panel,false);
   toggle('cobros',true);$('tituloCobros').focus();const stamp=generation;
   if(id){$('buscarCobro').value=id;$('filtroCobros').value='todos';}
   await refreshPayments();if(id&&current(stamp)&&balances(paymentOrders.find(o=>o.id===id)||{total:0}).available>0)openPaymentForm(id);
@@ -1264,6 +1324,303 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   }catch(error){if(current(stamp))paymentMessage(paymentError(error)+' Actualiza para comprobar el estado antes de volver a intentarlo.');}
   finally{if(current(stamp))paymentBusyState(false);}
  }
+
+
+  // Rutas v1: stop lists and visit outcomes are saved in Supabase and owned by the signed-in user.
+  const ROUTE_COLS='id,propietario_id,nombre,fecha,sector,origen,origen_lat,origen_lng,paradas,created_at,updated_at';
+  const RUTA_ESTADOS=[['pendiente','🔴 Pendiente'],['visitado','🟢 Visitado'],['compro','🟢 Compró'],['no_compro','🟠 No compró'],['no_atendido','🟠 No atendido']];
+  let rutas=[],rutasReady=false,rutaBusy=false,rutaLoad=0,rutaActiva='',rutaOrigenPanel='admin';
+  let rutaClientesElegidos=new Set(),rutaMap=null,rutaMapMarkers=null,rutaMapLine=null,rutaMapAsignacion=null,rutaGeoUltimo=0,rutaGeoConfirmado=false;
+  const rutaMensaje=t=>{$('estadoRutas').textContent=t};
+  const rutaCliente=id=>records.find(c=>c.id===String(id));
+  const rutaSeleccionada=()=>rutas.find(r=>r.id===rutaActiva);
+  const rutaUbicada=p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lng))&&p.lat!=null&&p.lng!=null;
+  const rutaFechaHoy=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Santiago'});
+  function resetRoutes(){
+    rutaLoad++;rutas=[];rutasReady=false;rutaBusy=false;rutaActiva='';rutaClientesElegidos=new Set();rutaMapAsignacion=null;
+    if(rutaMap){rutaMap.remove();rutaMap=null;rutaMapMarkers=null;rutaMapLine=null;}
+    $('rutaActual').replaceChildren(new Option('Selecciona una ruta',''));
+    $('rutaParadas').replaceChildren();$('rutaCandidatos').replaceChildren();$('rutaResumen').textContent='';
+    $('rutaMapaEstado').textContent='Las paradas sin ubicación pueden localizarse desde la lista.';
+    rutaMensaje('');toggle('rutas',false);
+  }
+  function rutaControlar(){
+    for(const id of ['rutaCrear','rutaAgregar','rutaBorrar','rutaOrdenar','rutaUbicarOrigen','rutaMarcarTodos','rutaLimpiarSeleccion','rutaActualizar'])
+      $(id).disabled=rutaBusy||!rutasReady||(id==='rutaAgregar'||id==='rutaBorrar'||id==='rutaOrdenar'||id==='rutaUbicarOrigen')&&!rutaSeleccionada();
+    $('rutaActual').disabled=rutaBusy;
+  }
+  function rutaCandidatosVisibles(){
+    const sector=$('rutaSector').value,q=M.searchText($('rutaBuscarCliente').value.trim());
+    return records.filter(c=>(!sector||c.sector_comercial===sector)&&(!q||M.searchText(c.nombre_negocio+' '+c.direccion+' '+c.rut).includes(q)))
+      .sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio,'es')).slice(0,350);
+  }
+  function rutaDibujarCandidatos(){
+    const sectors=[...new Set(records.map(c=>c.sector_comercial).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+    const selected=$('rutaSector').value;
+    $('rutaSector').replaceChildren(new Option('Todos los sectores',''),...sectors.map(x=>new Option(x,x)));
+    $('rutaSector').value=sectors.includes(selected)?selected:'';
+    $('rutaCandidatos').replaceChildren();
+    const visibles=rutaCandidatosVisibles();
+    for(const c of visibles){
+      const label=node('label',undefined,'ruta-choice'),cb=node('input');cb.type='checkbox';cb.checked=rutaClientesElegidos.has(c.id);
+      cb.disabled=rutaBusy;
+      cb.addEventListener('change',()=>{
+        if(cb.checked){
+          if(rutaClientesElegidos.size>=60){cb.checked=false;return rutaMensaje('Máximo 60 clientes por ruta en esta primera versión.');}
+          rutaClientesElegidos.add(c.id);
+        }else rutaClientesElegidos.delete(c.id);
+        $('rutaConteoSeleccion').textContent=rutaClientesElegidos.size+' clientes seleccionados · '+visibles.length+' visibles';
+      });
+      label.append(cb,node('span',c.nombre_negocio+' · '+(c.sector_comercial||'Sin sector')+' · '+(c.direccion||'Sin dirección')));
+      $('rutaCandidatos').append(label);
+    }
+    if(!visibles.length)$('rutaCandidatos').append(node('p',listReady?'No se encontraron clientes.':'Carga primero los clientes de Supabase.','aviso'));
+    $('rutaConteoSeleccion').textContent=rutaClientesElegidos.size+' clientes seleccionados · '+visibles.length+' visibles';
+  }
+  function rutaDibujarSelector(){
+    const select=$('rutaActual'),old=rutaActiva;
+    select.replaceChildren(new Option('Selecciona una ruta',''));
+    for(const r of rutas)select.add(new Option(r.fecha+' · '+r.nombre+' ('+r.paradas.length+' paradas)',r.id));
+    rutaActiva=rutas.some(r=>r.id===old)?old:(rutas[0]?.id||'');
+    select.value=rutaActiva;
+  }
+  function rutaInicializarMapa(){
+    if(rutaMap||!window.L){if(!window.L)$('rutaMapaEstado').textContent='El mapa no está disponible. Comprueba tu conexión. La lista de paradas seguirá funcionando.';return;}
+    rutaMap=L.map('rutaMapa',{zoomControl:true}).setView([-34.17,-70.74],12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+    }).addTo(rutaMap);
+    rutaMapMarkers=L.layerGroup().addTo(rutaMap);
+    rutaMap.on('click',async e=>{
+      if(!rutaMapAsignacion||rutaBusy)return;
+      const item=rutaMapAsignacion;
+      rutaMapAsignacion=null;
+      if(item==='origen')await rutaModificar(r=>({origen_lat:e.latlng.lat,origen_lng:e.latlng.lng}),'Punto de salida ubicado en el mapa.');
+      else await rutaModificar(r=>({paradas:r.paradas.map(p=>String(p.cliente_id)===item?{...p,lat:e.latlng.lat,lng:e.latlng.lng}:p)}),'Ubicación de parada guardada.');
+    });
+  }
+  function rutaDibujarMapa(){
+    if(!rutaMap)return;
+    rutaMapMarkers.clearLayers();if(rutaMapLine){rutaMap.removeLayer(rutaMapLine);rutaMapLine=null;}
+    const r=rutaSeleccionada(),bounds=[],track=[];
+    if(!r){rutaMap.setView([-34.17,-70.74],12);return;}
+    if(r.origen_lat!=null&&r.origen_lng!=null){
+      const pos=[r.origen_lat,r.origen_lng];bounds.push(pos);track.push(pos);
+      L.marker(pos).bindPopup('Origen: '+r.origen).addTo(rutaMapMarkers);
+    }
+    r.paradas.forEach((p,i)=>{
+      if(!rutaUbicada(p))return;
+      const pos=[Number(p.lat),Number(p.lng)],c=rutaCliente(p.cliente_id);
+      const status=p.estado==='visitado'||p.estado==='compro'?'verde':p.estado==='no_compro'||p.estado==='no_atendido'?'ambar':'';
+      const icon=L.divIcon({className:'',html:'<div class="ruta-mapa-marca '+status+'">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});
+      const popup=node('div',(i+1)+'. '+(c?.nombre_negocio||'Cliente no disponible')+' · '+(p.estado||'pendiente'));
+      L.marker(pos,{icon}).bindPopup(popup).addTo(rutaMapMarkers);bounds.push(pos);track.push(pos);
+    });
+    if(track.length>=2)rutaMapLine=L.polyline(track,{color:'#ddaf51',weight:3,dashArray:'7 7'}).addTo(rutaMap);
+    if(bounds.length)rutaMap.fitBounds(bounds,{padding:[24,24],maxZoom:15});
+    else rutaMap.setView([-34.17,-70.74],12);
+    $('rutaMapaEstado').textContent=r.paradas.filter(rutaUbicada).length+' de '+r.paradas.length+' paradas ubicadas. La línea punteada es visual: NO representa calles ni tiempo de viaje.';
+  }
+  function rutaDibujarParadas(){
+    const r=rutaSeleccionada(),out=$('rutaParadas');out.replaceChildren();
+    if(!r){$('rutaResumen').textContent='Crea una ruta o selecciona una existente.';rutaDibujarMapa();rutaControlar();return;}
+    const done=r.paradas.filter(p=>p.estado!=='pendiente').length;
+    $('rutaResumen').textContent=r.nombre+' · '+r.fecha+' · '+done+'/'+r.paradas.length+' visitas registradas';
+    if(!r.paradas.length)out.append(node('p','Esta ruta aún no tiene clientes. Selecciónalos arriba y pulsa “Añadir seleccionados”.','aviso'));
+    r.paradas.forEach((p,i)=>{
+      const c=rutaCliente(p.cliente_id),box=node('article',undefined,'ruta-parada '+(p.estado||'pendiente'));
+      box.append(node('h4',(i+1)+'. '+(c?.nombre_negocio||'Cliente sin acceso o eliminado')));
+      box.append(node('p',c?.direccion||'Dirección no disponible'),node('p','Sector: '+(c?.sector_comercial||'Sin sector')));
+      const sel=node('select');
+      for(const [value,label]of RUTA_ESTADOS)sel.add(new Option(label,value));
+      sel.value=RUTA_ESTADOS.some(x=>x[0]===p.estado)?p.estado:'pendiente';sel.disabled=rutaBusy;
+      sel.setAttribute('aria-label','Resultado de visita: '+(c?.nombre_negocio||'cliente'));
+      sel.addEventListener('change',()=>rutaModificar(x=>({paradas:x.paradas.map(s=>String(s.cliente_id)===String(p.cliente_id)?{...s,estado:sel.value}:s)}),'Visita registrada.'));
+      box.append(sel);
+      const buttons=node('div',undefined,'ruta-toolbar');
+      const up=node('button','↑');up.type='button';up.disabled=rutaBusy||i===0;up.setAttribute('aria-label','Subir parada');
+      up.onclick=()=>rutaModificar(x=>{const a=x.paradas.slice();[a[i-1],a[i]]=[a[i],a[i-1]];return{paradas:a}},'Parada reordenada.');
+      const down=node('button','↓');down.type='button';down.disabled=rutaBusy||i===r.paradas.length-1;down.setAttribute('aria-label','Bajar parada');
+      down.onclick=()=>rutaModificar(x=>{const a=x.paradas.slice();[a[i],a[i+1]]=[a[i+1],a[i]];return{paradas:a}},'Parada reordenada.');
+      buttons.append(up,down);
+      const locate=node('button',rutaUbicada(p)?'📍 Reubicar':'📍 Ubicar en mapa');locate.type='button';locate.disabled=rutaBusy;
+      locate.onclick=()=>rutaUbicarParada(p);buttons.append(locate);
+      const manual=node('button','Marcar punto a mano');manual.type='button';manual.disabled=rutaBusy;
+      manual.onclick=()=>{rutaMapAsignacion=String(p.cliente_id);rutaMensaje('Toca en el mapa la ubicación de '+(c?.nombre_negocio||'esta parada')+'.');rutaMap?.scrollIntoView({behavior:'smooth',block:'center'});};
+      buttons.append(manual);
+      const remove=node('button','Quitar');remove.type='button';remove.disabled=rutaBusy;
+      remove.onclick=()=>{if(confirm('¿Quitar esta parada de la ruta? No se borrará el cliente.'))rutaModificar(x=>({paradas:x.paradas.filter(s=>String(s.cliente_id)!==String(p.cliente_id))}),'Parada retirada.');};
+      buttons.append(remove);box.append(buttons);
+      if(c?.direccion||rutaUbicada(p)){
+        const link=node('a','Abrir navegación en Google Maps','ruta-enlace');
+        const destination=rutaUbicada(p)?p.lat+','+p.lng:c.direccion+', '+(c.sector_comercial||'Rancagua')+', Chile';
+        link.href='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(destination)+'&travelmode=driving';
+        link.rel='noopener noreferrer';link.target='_blank';box.append(link);
+      }
+      out.append(box);
+    });
+    rutaDibujarMapa();rutaControlar();
+  }
+  function rutaDibujarTodo(){rutaDibujarSelector();rutaDibujarCandidatos();rutaDibujarParadas();}
+  async function rutaCargar(){
+    if(!user||!profile||rutaBusy)return;
+    const stamp=generation,seq=++rutaLoad;
+    rutaBusy=true;rutaControlar();rutaMensaje('Cargando rutas desde Supabase…');
+    try{
+      const all=[];
+      for(let start=0;;start+=200){
+        const{data,error}=await client.from('olimpo_rutas').select(ROUTE_COLS).order('fecha',{ascending:false}).range(start,start+199);
+        if(error)throw error;
+        all.push(...data);if(data.length<200)break;
+      }
+      if(!current(stamp)||seq!==rutaLoad)return;
+      rutas=all;rutasReady=true;rutaMensaje('Rutas sincronizadas. Elige clientes y prepara tu recorrido.');
+      rutaDibujarTodo();
+    }catch(error){
+      if(current(stamp)&&seq===rutaLoad){rutasReady=false;rutaMensaje('No se pudieron cargar las rutas. '+M.errorText(error));}
+    }finally{if(current(stamp)&&seq===rutaLoad){rutaBusy=false;rutaControlar();}}
+  }
+  async function rutaModificar(compute,success){
+    const r=rutaSeleccionada();if(!r||rutaBusy)return;
+    const updates=compute(r),stamp=generation;
+    if(!updates||!Object.keys(updates).length)return;
+    rutaBusy=true;rutaControlar();rutaMensaje('Guardando cambios de ruta en Supabase…');
+    try{
+      const next={...updates,updated_at:new Date().toISOString()};
+      const{data,error}=await client.from('olimpo_rutas').update(next).eq('id',r.id).eq('updated_at',r.updated_at).select(ROUTE_COLS).maybeSingle();
+      if(error)throw error;
+      if(!data)throw Error('La ruta fue modificada desde otro dispositivo.');
+      if(!current(stamp))return;
+      rutas=rutas.map(x=>x.id===data.id?data:x);
+      rutaMensaje(success);rutaDibujarTodo();
+    }catch(error){if(current(stamp)){rutaMensaje('No se confirmó el cambio. Actualiza la ruta antes de repetir. '+(error?.message||M.errorText(error)));}}
+    finally{if(current(stamp)){rutaBusy=false;rutaControlar();}}
+  }
+  const rad=x=>x*Math.PI/180;
+  function rutaDistancia(a,b){const dLat=rad(b[0]-a[0]),dLon=rad(b[1]-a[1]);const c=Math.sin(dLat/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dLon/2)**2;return 6371*2*Math.asin(Math.sqrt(c));}
+  async function rutaOrdenarPorCercania(){
+    const r=rutaSeleccionada();if(!r||rutaBusy)return;
+    if(r.origen_lat==null||r.origen_lng==null||r.paradas.some(p=>!rutaUbicada(p)))return rutaMensaje('Primero ubica el origen y todas las paradas. La distancia usada es recta, no por calles.');
+    if(!confirm('¿Ordenar las paradas por cercanía EN LÍNEA RECTA desde el origen? Esto no considera calles, tráfico ni tiempos.'))return;
+    let cursor=[Number(r.origen_lat),Number(r.origen_lng)],remaining=r.paradas.slice(),sorted=[];
+    while(remaining.length){
+      let closest=0,best=Infinity;
+      remaining.forEach((p,i)=>{const d=rutaDistancia(cursor,[Number(p.lat),Number(p.lng)]);if(d<best){best=d;closest=i;}});
+      const p=remaining.splice(closest,1)[0];sorted.push(p);cursor=[Number(p.lat),Number(p.lng)];
+    }
+    await rutaModificar(()=>({paradas:sorted}),'Orden aproximado actualizado. Verifica calles reales antes de salir.');
+  }
+  async function rutaGeocodificar(address){
+    if(Date.now()-rutaGeoUltimo<1200)throw Error('Espera al menos un segundo entre búsquedas de direcciones.');
+    if(!rutaGeoConfirmado){
+      if(!confirm('Para localizar el punto se enviará esta dirección al servicio público Nominatim/OpenStreetMap. Comprueba que puedes compartirla. ¿Continuar?'))return null;
+      rutaGeoConfirmado=true;
+    }
+    rutaGeoUltimo=Date.now();
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+    try{
+      const response=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=cl&limit=1&q='+encodeURIComponent(address),{
+        signal:controller.signal,headers:{accept:'application/json'}
+      });
+      if(!response.ok)throw Error('El servicio de geocodificación no respondió.');
+      const data=await response.json();
+      if(!data.length)throw Error('No encontré la dirección. Usa “Marcar punto a mano” y verifica el lugar.');
+      const lat=Number(data[0].lat),lng=Number(data[0].lon);
+      if(!Number.isFinite(lat)||!Number.isFinite(lng))throw Error('Coordenadas inválidas.');
+      return {lat,lng,display:data[0].display_name};
+    }finally{clearTimeout(timeout);}
+  }
+  async function rutaUbicarParada(stop){
+    const c=rutaCliente(stop.cliente_id);
+    if(!c?.direccion)return rutaMensaje('Este cliente no tiene dirección. Agrégala en el módulo Clientes o marca su ubicación manualmente.');
+    if(rutaBusy)return;
+    const r=rutaSeleccionada();if(!r)return;
+    rutaBusy=true;rutaControlar();rutaMensaje('Buscando dirección: '+c.direccion);
+    let coords;
+    try{coords=await rutaGeocodificar(c.direccion+', '+(c.sector_comercial||'Rancagua')+', Chile');}
+    catch(error){rutaMensaje(error.message||'No se pudo localizar esta dirección.');}
+    finally{rutaBusy=false;rutaControlar();}
+    if(!coords)return;
+    if(!confirm('Resultado: '+coords.display+'\n¿Guardar este punto para '+c.nombre_negocio+'? Si está equivocado, cancela y elige el punto en el mapa.'))return;
+    await rutaModificar(x=>({paradas:x.paradas.map(p=>String(p.cliente_id)===String(stop.cliente_id)?{...p,lat:coords.lat,lng:coords.lng}:p)}),'Ubicación guardada. Comprueba el pin en el mapa.');
+  }
+  async function rutaUbicarSalida(){
+    const r=rutaSeleccionada();if(!r||rutaBusy)return;
+    const address=r.origen;
+    rutaBusy=true;rutaControlar();rutaMensaje('Buscando punto de salida…');
+    let coords;
+    try{coords=await rutaGeocodificar(address);}
+    catch(error){rutaMensaje(error.message||'No se encontró el punto de salida.');}
+    finally{rutaBusy=false;rutaControlar();}
+    if(!coords)return;
+    if(!confirm('Resultado para el origen: '+coords.display+'\n¿Guardar?'))return;
+    await rutaModificar(()=>({origen_lat:coords.lat,origen_lng:coords.lng}),'Punto de salida ubicado. Comprueba el mapa.');
+  }
+  window.abrirRutas=async()=>{
+    if(!profile)return;
+    rutaOrigenPanel=$('btnAdmin').classList.contains('activo')?'admin':'vendedor';
+    for(const panel of ['admin','vendedor','clientes','inventario','pedidos','cobros'])toggle(panel,false);
+    toggle('rutas',true);$('tituloRutas').focus();
+    if(!$('rutaFecha').value)$('rutaFecha').value=rutaFechaHoy();
+    if(!listReady&&!busy)await refresh();
+    rutaDibujarCandidatos();
+    rutaInicializarMapa();
+    setTimeout(()=>{if(rutaMap){rutaMap.invalidateSize();rutaDibujarMapa();}},80);
+    if(!rutasReady)await rutaCargar();else{rutaDibujarTodo();rutaControlar();}
+  };
+  $('volverRutas').addEventListener('click',()=>window.mostrar(rutaOrigenPanel));
+  $('rutaSector').addEventListener('change',rutaDibujarCandidatos);
+  $('rutaBuscarCliente').addEventListener('input',rutaDibujarCandidatos);
+  $('rutaMarcarTodos').addEventListener('click',()=>{
+    for(const c of rutaCandidatosVisibles()){if(rutaClientesElegidos.size>=60)break;rutaClientesElegidos.add(c.id);}
+    rutaDibujarCandidatos();
+    if(rutaClientesElegidos.size>=60)rutaMensaje('Límite de 60 clientes por ruta. Puedes crear otra ruta para el resto.');
+  });
+  $('rutaLimpiarSeleccion').addEventListener('click',()=>{rutaClientesElegidos.clear();rutaDibujarCandidatos();});
+  $('rutaCrear').addEventListener('click',async()=>{
+    if(rutaBusy||!rutasReady||!user)return;
+    const nombre=$('rutaNombre').value.trim(),fecha=$('rutaFecha').value,origen=$('rutaOrigen').value.trim();
+    const ids=[...rutaClientesElegidos].filter(id=>!!rutaCliente(id));
+    if(!nombre||nombre.length>120||!/^\d{4}-\d{2}-\d{2}$/.test(fecha)||!origen||origen.length>250||!ids.length)return rutaMensaje('Completa nombre, fecha, origen y selecciona al menos un cliente.');
+    if(ids.length>60)return rutaMensaje('Máximo 60 paradas.');
+    if(!confirm('¿Crear "'+nombre+'" con '+ids.length+' paradas para '+fecha+'?'))return;
+    const stamp=generation;
+    rutaBusy=true;rutaControlar();rutaMensaje('Guardando ruta en Supabase…');
+    try{
+      const{data,error}=await client.from('olimpo_rutas').insert({
+        propietario_id:user.id,nombre,fecha,sector:$('rutaSector').value,origen,
+        paradas:ids.map(id=>({cliente_id:id,estado:'pendiente'}))
+      }).select(ROUTE_COLS).single();
+      if(error)throw error;if(!current(stamp))return;
+      rutas.unshift(data);rutaActiva=data.id;rutaClientesElegidos.clear();rutaMensaje('Ruta creada y guardada en la nube.');
+      rutaDibujarTodo();
+    }catch(error){if(current(stamp))rutaMensaje('No se pudo confirmar la ruta. Pulsa Actualizar antes de repetir. '+M.errorText(error));}
+    finally{if(current(stamp)){rutaBusy=false;rutaControlar();}}
+  });
+  $('rutaAgregar').addEventListener('click',()=>{
+    const r=rutaSeleccionada();if(!r||rutaBusy)return;
+    const existing=new Set(r.paradas.map(p=>String(p.cliente_id)));
+    const candidates=[...rutaClientesElegidos].filter(id=>rutaCliente(id)&&!existing.has(id));
+    if(!candidates.length)return rutaMensaje('Selecciona uno o más clientes nuevos para esta ruta.');
+    if(r.paradas.length+candidates.length>60)return rutaMensaje('Máximo 60 paradas por ruta.');
+    if(!confirm('¿Agregar '+candidates.length+' clientes a esta ruta?'))return;
+    rutaModificar(x=>({paradas:[...x.paradas,...candidates.map(cliente_id=>({cliente_id,estado:'pendiente'}))]}),'Clientes agregados a la ruta.').then(()=>{rutaClientesElegidos.clear();rutaDibujarCandidatos();});
+  });
+  $('rutaActual').addEventListener('change',()=>{rutaActiva=$('rutaActual').value;rutaMapAsignacion=null;rutaDibujarParadas();});
+  $('rutaActualizar').addEventListener('click',rutaCargar);
+  $('rutaOrdenar').addEventListener('click',rutaOrdenarPorCercania);
+  $('rutaUbicarOrigen').addEventListener('click',rutaUbicarSalida);
+  $('rutaBorrar').addEventListener('click',async()=>{
+    const r=rutaSeleccionada();if(!r||rutaBusy||!confirm('¿Eliminar definitivamente la ruta "'+r.nombre+'"? Los clientes y sus pedidos no se borrarán.'))return;
+    const stamp=generation;rutaBusy=true;rutaControlar();rutaMensaje('Eliminando ruta…');
+    try{
+      const{data,error}=await client.from('olimpo_rutas').delete().eq('id',r.id).eq('updated_at',r.updated_at).select('id').maybeSingle();
+      if(error)throw error;if(!data)throw Error('No se pudo confirmar el borrado; actualiza antes de repetir.');
+      if(!current(stamp))return;
+      rutas=rutas.filter(x=>x.id!==r.id);rutaActiva='';rutaMensaje('Ruta eliminada. Los clientes se conservan.');rutaDibujarTodo();
+    }catch(error){if(current(stamp))rutaMensaje(error.message||M.errorText(error));}
+    finally{if(current(stamp)){rutaBusy=false;rutaControlar();}}
+  });
 
   lock();
   try {
