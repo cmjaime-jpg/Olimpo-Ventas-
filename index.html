@@ -1847,7 +1847,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   $('repartoDia').addEventListener('change',()=>{repartoDibujar();repartoSeleccion();});
   $('repartoBuscar').addEventListener('input',repartoClientes);
   $('repartoCliente').addEventListener('change',repartoSeleccion);
-  $('repartoActualizar').addEventListener('click',async()=>{await loadClients();await repartoCargar();});
+  $('repartoActualizar').addEventListener('click',async()=>{await refresh();await repartoCargar();});
   $('repartoGuardar').addEventListener('click',async()=>{
     const uid=user?.id,id=$('repartoCliente').value,day=Number($('repartoDia').value),pos=repartoCoords;
     if(!uid||!id||!pos)return;
