@@ -1627,9 +1627,9 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     const r=rutaSeleccionada(),search=M.searchText($('rutaNuevaParadaBuscar').value.trim()),select=$('rutaNuevaParadaCliente');
     const currentValue=select.value;
     const already=new Set((r?.paradas||[]).map(p=>String(p.cliente_id)));
-    const available=records.filter(c=>!already.has(String(c.id))&&(!search||M.searchText(c.nombre_negocio+' '+(c.direccion||'')).includes(search))).sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio,'es')).slice(0,250);
+    const available=records.filter(c=>(!search||M.searchText(c.nombre_negocio+' '+(c.direccion||'')).includes(search))).sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio,'es')).slice(0,250);
     select.replaceChildren(new Option(available.length?'Selecciona un cliente':'No hay clientes disponibles',''));
-    for(const c of available)select.add(new Option(c.nombre_negocio+' · '+(c.direccion||'Sin dirección'),String(c.id)));
+    for(const c of available)select.add(new Option(c.nombre_negocio+(already.has(String(c.id))?' · Ya está en ruta: actualizar ubicación':'')+' · '+(c.direccion||'Sin dirección'),String(c.id)));
     if(available.some(c=>String(c.id)===currentValue))select.value=currentValue;
   }
   $('rutaNuevaParadaBuscar').addEventListener('input',rutaRellenarClientesNuevaParada);
@@ -1639,10 +1639,10 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     const r=rutaSeleccionada(),clienteId=$('rutaNuevaParadaCliente').value,coords=rutaPuntoNuevo;
     if(!r||!coords||rutaBusy)return;
     if(!clienteId||!rutaCliente(clienteId))return rutaMensaje('Selecciona un cliente válido para la parada.');
-    if(r.paradas.length>=60)return rutaMensaje('Esta ruta alcanzó el límite de 60 paradas.');
-    if(r.paradas.some(p=>String(p.cliente_id)===clienteId))return rutaMensaje('Ese cliente ya está incluido en la ruta.');
+    const existing=r.paradas.some(p=>String(p.cliente_id)===clienteId);
+    if(!existing&&r.paradas.length>=60)return rutaMensaje('Esta ruta alcanzó el límite de 60 paradas.');
     $('rutaDialogNuevaParada').close();
-    await rutaModificar(x=>({paradas:[...x.paradas,{cliente_id:clienteId,estado:'pendiente',lat:coords.lat,lng:coords.lng}]}),'Nueva parada añadida desde el mapa y guardada en Supabase.');
+    await rutaModificar(x=>({paradas:existing?x.paradas.map(p=>String(p.cliente_id)===clienteId?{...p,lat:coords.lat,lng:coords.lng}:p):[...x.paradas,{cliente_id:clienteId,estado:'pendiente',lat:coords.lat,lng:coords.lng}]}),existing?'Ubicación del cliente actualizada en el mapa y guardada en Supabase.':'Nueva parada añadida desde el mapa y guardada en Supabase.');
   });
 
   // Seguimiento GPS local, sin envío a Supabase ni registro de historial.
