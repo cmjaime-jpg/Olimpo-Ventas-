@@ -280,6 +280,15 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <div class="ruta-toolbar"><button type="button" id="rutaOrdenar">Ordenar por cercanía aproximada</button><button type="button" id="rutaUbicarOrigen">📍 Ubicar punto de salida</button></div><div class="ruta-toolbar"><button type="button" id="rutaGPSIniciar">📍 Mi ubicación GPS</button><button type="button" id="rutaGPSDetener" disabled>⏹ Detener GPS</button></div><p id="rutaGPSEstado" class="aviso" role="status">GPS apagado. Solo se activa con tu permiso; no se guarda en Olimpo.</p>
   <p class="aviso">La ordenación usa distancia en línea recta y NO reemplaza una ruta optimizada por calles. El mapa requiere internet; los puntos se ubican uno a uno con confirmación.</p>
   <div id="rutaMapa" role="region" aria-label="Mapa de paradas de la ruta"></div>
+  <p class="aviso">Mantén presionado el mapa para añadir una parada en ese punto. En computador, usa clic derecho.</p>
+  <dialog id="rutaDialogNuevaParada" aria-labelledby="rutaNuevaParadaTitulo">
+    <h3 id="rutaNuevaParadaTitulo">📍 Añadir parada aquí</h3>
+    <p class="aviso">Elige un cliente existente para vincularlo al punto que marcaste.</p>
+    <label>Buscar cliente<input id="rutaNuevaParadaBuscar" type="search" placeholder="Nombre o dirección"></label>
+    <label>Cliente<select id="rutaNuevaParadaCliente" style="width:100%"></select></label>
+    <p id="rutaNuevaParadaCoords" class="aviso"></p>
+    <div class="ruta-toolbar"><button type="button" id="rutaNuevaParadaGuardar" class="activo">Añadir a la ruta</button><button type="button" id="rutaNuevaParadaCancelar">Cancelar</button></div>
+  </dialog>
   <p class="aviso" id="rutaMapaEstado">Las paradas sin ubicación pueden localizarse desde la lista.</p>
   <div id="rutaParadas"></div>
  </div>
@@ -1333,6 +1342,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   let rutas=[],rutasReady=false,rutaBusy=false,rutaLoad=0,rutaActiva='',rutaOrigenPanel='admin';
   let rutaClientesElegidos=new Set(),rutaMap=null,rutaMapMarkers=null,rutaMapLine=null,rutaMapAsignacion=null,rutaGeoUltimo=0,rutaGeoConfirmado=false;
   let rutaGPSWatch=null,rutaGPSMarker=null,rutaGPSAccuracy=null,rutaGPSFollowing=false,rutaGPSLast=null;
+  let rutaPuntoNuevo=null;
   const rutaMensaje=t=>{$('estadoRutas').textContent=t};
   const rutaCliente=id=>records.find(c=>c.id===String(id));
   const rutaSeleccionada=()=>rutas.find(r=>r.id===rutaActiva);
@@ -1340,6 +1350,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   const rutaFechaHoy=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Santiago'});
   function resetRoutes(){
     rutaDetenerGPS();
+    $('rutaDialogNuevaParada').close();rutaPuntoNuevo=null;
     rutaLoad++;rutas=[];rutasReady=false;rutaBusy=false;rutaActiva='';rutaClientesElegidos=new Set();rutaMapAsignacion=null;
     if(rutaMap){rutaMap.remove();rutaMap=null;rutaMapMarkers=null;rutaMapLine=null;}
     $('rutaActual').replaceChildren(new Option('Selecciona una ruta',''));
@@ -1395,6 +1406,14 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     }).addTo(rutaMap);
     rutaMapMarkers=L.layerGroup().addTo(rutaMap);
     rutaMap.on('dragstart',()=>{if(rutaGPSWatch!==null)rutaGPSFollowing=false;});
+    rutaMap.on('contextmenu',e=>{
+      if(rutaMapAsignacion||rutaBusy||!rutaSeleccionada())return;
+      rutaPuntoNuevo={lat:e.latlng.lat,lng:e.latlng.lng};
+      $('rutaNuevaParadaCoords').textContent='Ubicación: '+e.latlng.lat.toFixed(6)+', '+e.latlng.lng.toFixed(6);
+      $('rutaNuevaParadaBuscar').value='';
+      rutaRellenarClientesNuevaParada();
+      $('rutaDialogNuevaParada').showModal();
+    });
     rutaMap.on('click',async e=>{
       if(!rutaMapAsignacion||rutaBusy)return;
       const item=rutaMapAsignacion;
@@ -1567,6 +1586,29 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     if(!confirm('Resultado para el origen: '+coords.display+'\n¿Guardar?'))return;
     await rutaModificar(()=>({origen_lat:coords.lat,origen_lng:coords.lng}),'Punto de salida ubicado. Comprueba el mapa.');
   }
+
+
+  function rutaRellenarClientesNuevaParada(){
+    const r=rutaSeleccionada(),search=M.searchText($('rutaNuevaParadaBuscar').value.trim()),select=$('rutaNuevaParadaCliente');
+    const currentValue=select.value;
+    const already=new Set((r?.paradas||[]).map(p=>String(p.cliente_id)));
+    const available=records.filter(c=>!already.has(String(c.id))&&(!search||M.searchText(c.nombre_negocio+' '+(c.direccion||'')).includes(search))).sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio,'es')).slice(0,250);
+    select.replaceChildren(new Option(available.length?'Selecciona un cliente':'No hay clientes disponibles',''));
+    for(const c of available)select.add(new Option(c.nombre_negocio+' · '+(c.direccion||'Sin dirección'),String(c.id)));
+    if(available.some(c=>String(c.id)===currentValue))select.value=currentValue;
+  }
+  $('rutaNuevaParadaBuscar').addEventListener('input',rutaRellenarClientesNuevaParada);
+  $('rutaNuevaParadaCancelar').addEventListener('click',()=>{$('rutaDialogNuevaParada').close();rutaPuntoNuevo=null;});
+  $('rutaDialogNuevaParada').addEventListener('close',()=>{rutaPuntoNuevo=null;});
+  $('rutaNuevaParadaGuardar').addEventListener('click',async()=>{
+    const r=rutaSeleccionada(),clienteId=$('rutaNuevaParadaCliente').value,coords=rutaPuntoNuevo;
+    if(!r||!coords||rutaBusy)return;
+    if(!clienteId||!rutaCliente(clienteId))return rutaMensaje('Selecciona un cliente válido para la parada.');
+    if(r.paradas.length>=60)return rutaMensaje('Esta ruta alcanzó el límite de 60 paradas.');
+    if(r.paradas.some(p=>String(p.cliente_id)===clienteId))return rutaMensaje('Ese cliente ya está incluido en la ruta.');
+    $('rutaDialogNuevaParada').close();
+    await rutaModificar(x=>({paradas:[...x.paradas,{cliente_id:clienteId,estado:'pendiente',lat:coords.lat,lng:coords.lng}]}),'Nueva parada añadida desde el mapa y guardada en Supabase.');
+  });
 
   // Seguimiento GPS local, sin envío a Supabase ni registro de historial.
   function rutaGPSActualizarBotones(){
