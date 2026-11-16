@@ -256,6 +256,19 @@ input[type=file] {font-size:14px;padding:12px 8px}
  <h2 id="tituloRutas" tabindex="-1">🚚 Rutas de reparto</h2>
  <p class="aviso">Primera versión tipo Spoke: planifica visitas a tus clientes, guárdalas en Supabase, ordénalas y registra resultados. Cada usuario ve sus propias rutas.</p>
  <p id="estadoRutas" class="ruta-mensaje" role="status" aria-live="polite"></p>
+<div class="ruta-panel" id="repartoSimplePanel">
+ <h3>📍 Reparto semanal sencillo</h3>
+ <p class="aviso">Elige el día, selecciona un cliente registrado, toca el mapa y guarda. La asignación se repetirá cada semana, sin duplicados.</p>
+ <div class="campos-clientes">
+  <label>Día de reparto<select id="repartoDia"><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></label>
+  <label>Buscar cliente<input id="repartoBuscar" type="search" placeholder="Nombre o dirección"></label>
+  <label class="ancho">Cliente registrado<select id="repartoCliente"><option value="">Selecciona un cliente</option></select></label>
+ </div>
+ <p id="repartoEstado" class="aviso" role="status" aria-live="polite">Selecciona un cliente y toca el mapa.</p>
+ <div id="repartoMapa" style="height:340px;max-width:100%;border-radius:16px;margin:14px 0;z-index:0"></div>
+ <div class="ruta-toolbar"><button type="button" id="repartoGuardar" class="activo" disabled>💾 Guardar día y ubicación</button><button type="button" id="repartoActualizar">↻ Actualizar clientes y paradas</button></div>
+ <h4>Clientes de este día</h4><div id="repartoLista" class="ruta-candidatos"></div>
+</div>
  <div class="ruta-panel">
   <h3>Preparar recorrido</h3>
   <div class="campos-clientes">
@@ -1766,6 +1779,89 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     }catch(error){if(current(stamp))rutaMensaje(error.message||M.errorText(error));}
     finally{if(current(stamp)){rutaBusy=false;rutaControlar();}}
   });
+
+
+  // Reparto semanal simplificado: asignaciones persistentes independientes de las rutas fechadas.
+  let repartoMapa=null,repartoMarkers=null,repartoPin=null,repartoCoords=null,repartoRows=[],repartoLoadSeq=0;
+  const repartoMsg=t=>{$('repartoEstado').textContent=t;};
+  function repartoClientes(){
+    const search=M.searchText($('repartoBuscar').value.trim()),prev=$('repartoCliente').value;
+    const items=records.filter(c=>!search||M.searchText((c.nombre_negocio||'')+' '+(c.direccion||'')).includes(search)).sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio,'es')).slice(0,300);
+    $('repartoCliente').replaceChildren(new Option('Selecciona un cliente',''));
+    for(const c of items)$('repartoCliente').add(new Option(c.nombre_negocio+' · '+(c.direccion||'Sin dirección'),String(c.id)));
+    if(items.some(c=>String(c.id)===prev))$('repartoCliente').value=prev;
+    repartoSeleccion();
+  }
+  function repartoSeleccion(){
+    const id=$('repartoCliente').value,day=Number($('repartoDia').value);
+    const existing=repartoRows.find(x=>String(x.cliente_id)===id&&x.dia===day);
+    repartoCoords=existing?{lat:existing.lat,lng:existing.lng}:null;
+    if(repartoPin){repartoMapa.removeLayer(repartoPin);repartoPin=null;}
+    if(repartoCoords&&repartoMapa){repartoPin=L.marker([repartoCoords.lat,repartoCoords.lng]).addTo(repartoMapa);repartoMapa.setView([repartoCoords.lat,repartoCoords.lng],16);}
+    $('repartoGuardar').disabled=!id||!repartoCoords;
+    repartoMsg(!id?'Selecciona un cliente y toca el mapa.':existing?'Ubicación guardada. Puedes tocar otro punto para corregirla.':'Ahora toca en el mapa la ubicación exacta de este cliente.');
+  }
+  function repartoInitMap(){
+    if(repartoMapa||!window.L)return;
+    repartoMapa=L.map('repartoMapa').setView([-34.17,-70.74],13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(repartoMapa);
+    repartoMarkers=L.layerGroup().addTo(repartoMapa);
+    repartoMapa.on('click',e=>{
+      if(!$('repartoCliente').value)return repartoMsg('Primero selecciona un cliente registrado.');
+      repartoCoords={lat:e.latlng.lat,lng:e.latlng.lng};
+      if(repartoPin)repartoMapa.removeLayer(repartoPin);
+      repartoPin=L.marker(e.latlng).addTo(repartoMapa);
+      $('repartoGuardar').disabled=false;
+      repartoMsg('Punto seleccionado. Pulsa «Guardar día y ubicación».');
+    });
+  }
+  function repartoDibujar(){
+    $('repartoLista').replaceChildren();
+    if(repartoMarkers)repartoMarkers.clearLayers();
+    const day=Number($('repartoDia').value),items=repartoRows.filter(x=>x.dia===day);
+    items.forEach((r,i)=>{
+      const c=records.find(x=>String(x.id)===String(r.cliente_id));
+      const line=node('div',(i+1)+'. '+(c?.nombre_negocio||'Cliente')+' · '+(c?.direccion||'Sin dirección'),'ruta-choice');
+      const btn=node('button','📍 Ver / corregir');btn.type='button';
+      btn.onclick=()=>{$('repartoBuscar').value='';repartoClientes();$('repartoCliente').value=String(r.cliente_id);repartoSeleccion();};
+      line.append(btn);$('repartoLista').append(line);
+      if(repartoMarkers){
+        const icon=L.divIcon({className:'',html:'<div class="ruta-mapa-marca">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});
+        L.marker([r.lat,r.lng],{icon}).bindPopup((c?.nombre_negocio||'Cliente')).addTo(repartoMarkers);
+      }
+    });
+    if(!items.length)$('repartoLista').append(node('p','Todavía no hay clientes asignados a este día.','aviso'));
+  }
+  async function repartoCargar(){
+    if(!user||!client)return;
+    const seq=++repartoLoadSeq,uid=user.id;
+    repartoInitMap();repartoClientes();repartoMsg('Cargando reparto semanal…');
+    try{
+      const {data,error}=await client.from('olimpo_reparto_semanal').select('id,cliente_id,dia,lat,lng').eq('propietario_id',uid).order('id');
+      if(error)throw error;
+      if(seq!==repartoLoadSeq||!user||user.id!==uid)return;
+      repartoRows=data||[];repartoDibujar();repartoSeleccion();
+      if(repartoMapa)setTimeout(()=>repartoMapa?.invalidateSize(),100);
+    }catch(e){repartoMsg('No se pudo cargar el reparto: '+M.errorText(e));}
+  }
+  $('repartoDia').addEventListener('change',()=>{repartoDibujar();repartoSeleccion();});
+  $('repartoBuscar').addEventListener('input',repartoClientes);
+  $('repartoCliente').addEventListener('change',repartoSeleccion);
+  $('repartoActualizar').addEventListener('click',async()=>{await loadClients();await repartoCargar();});
+  $('repartoGuardar').addEventListener('click',async()=>{
+    const uid=user?.id,id=$('repartoCliente').value,day=Number($('repartoDia').value),pos=repartoCoords;
+    if(!uid||!id||!pos)return;
+    $('repartoGuardar').disabled=true;repartoMsg('Guardando en Supabase…');
+    try{
+      const {error}=await client.from('olimpo_reparto_semanal').upsert({propietario_id:uid,cliente_id:Number(id),dia:day,lat:pos.lat,lng:pos.lng,updated_at:new Date().toISOString()},{onConflict:'propietario_id,cliente_id,dia'});
+      if(error)throw error;
+      await repartoCargar();repartoMsg('✅ Cliente, día y ubicación guardados sin duplicados.');
+    }catch(e){repartoMsg('No se pudo guardar: '+M.errorText(e));}
+    finally{$('repartoGuardar').disabled=false;}
+  });
+  $('repartoSimplePanel').addEventListener('pointerdown',()=>{if(!repartoMapa&&user)repartoCargar();},{once:true});
+  const repartoObserver=new MutationObserver(()=>{if(!$('rutas').classList.contains('oculto')&&user){repartoCargar();}});
+  repartoObserver.observe($('rutas'),{attributes:true,attributeFilter:['class']});
 
   lock();
   try {
