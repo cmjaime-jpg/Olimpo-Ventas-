@@ -257,18 +257,26 @@ input[type=file] {font-size:14px;padding:12px 8px}
  <p class="aviso">Primera versión tipo Spoke: planifica visitas a tus clientes, guárdalas en Supabase, ordénalas y registra resultados. Cada usuario ve sus propias rutas.</p>
  <p id="estadoRutas" class="ruta-mensaje" role="status" aria-live="polite"></p>
 <div class="ruta-panel" id="repartoSimplePanel">
- <h3>📍 Reparto semanal sencillo</h3>
- <p class="aviso">Elige el día, selecciona un cliente registrado, toca el mapa y guarda. La asignación se repetirá cada semana, sin duplicados.</p>
+ <h3>🚚 Olimpo · Reparto semanal</h3>
+ <p class="aviso">Elige una semana guardada y un día. Toca el mapa para marcar una parada; podrás asociarle un cliente ahora o después.</p>
  <div class="campos-clientes">
+  <label class="ancho">Semana de reparto<select id="repartoSemana"><option value="">Cargando semanas…</option></select></label>
+  <label class="ancho">Crear nueva semana<div style="display:flex;gap:8px"><input id="repartoSemanaNombre" maxlength="100" placeholder="Ej.: Rancagua o Machalí"><button type="button" id="repartoSemanaCrear">＋ Crear</button></div></label>
   <label>Día de reparto<select id="repartoDia"><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></label>
-  <label>Buscar cliente<input id="repartoBuscar" type="search" placeholder="Nombre o dirección"></label>
-  <label class="ancho">Cliente registrado<select id="repartoCliente"><option value="">Selecciona un cliente</option></select></label>
  </div>
- <p id="repartoEstado" class="aviso" role="status" aria-live="polite">Selecciona un cliente y toca el mapa.</p>
- <div id="repartoMapa" style="height:340px;max-width:100%;border-radius:16px;margin:14px 0;z-index:0"></div>
- <div class="ruta-toolbar"><button type="button" id="repartoGuardar" class="activo" disabled>💾 Guardar día y ubicación</button><button type="button" id="repartoActualizar">↻ Actualizar clientes y paradas</button></div>
- <h4>Clientes de este día</h4><div id="repartoLista" class="ruta-candidatos"></div>
+ <p id="repartoEstado" class="aviso" role="status" aria-live="polite">Selecciona una semana y toca el mapa para agregar una parada.</p>
+ <div id="repartoMapa" style="height:370px;max-width:100%;border-radius:16px;margin:14px 0;z-index:0"></div>
+ <div class="ruta-toolbar"><button type="button" id="repartoGPS">📍 Mi ubicación</button><button type="button" id="repartoActualizar">↻ Actualizar</button></div>
+ <div id="repartoAsignar" style="display:none;border:1px solid #b79b57;border-radius:12px;padding:12px;margin:12px 0">
+  <h4 id="repartoAsignarTitulo">📍 Nueva parada</h4>
+  <p class="aviso" id="repartoCoordenadas"></p>
+  <label>Buscar cliente (opcional)<input id="repartoBuscar" type="search" placeholder="Nombre o dirección"></label>
+  <label>Asignar cliente<select id="repartoCliente"><option value="">Sin cliente asignado</option></select></label>
+  <div class="ruta-toolbar"><button type="button" id="repartoGuardar" class="activo">💾 Guardar parada</button><button type="button" id="repartoCancelar">Cancelar</button></div>
+ </div>
+ <h4>Paradas de este día</h4><div id="repartoLista" class="ruta-candidatos"></div>
 </div>
+ <details class="ruta-panel" id="rutasAvanzadas"><summary style="cursor:pointer;font-weight:600">⚙️ Rutas anteriores · opciones avanzadas</summary>
  <div class="ruta-panel">
   <h3>Preparar recorrido</h3>
   <div class="campos-clientes">
@@ -307,7 +315,8 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <p class="aviso" id="rutaMapaEstado">Las paradas sin ubicación pueden localizarse desde la lista.</p>
   <div id="rutaParadas"></div>
  </div>
-</section>
+</details>
+ </section>
 <section id="clientes" class="oculto" aria-labelledby="tituloClientes">
   <button type="button" id="volverClientes">← Volver al panel</button>
   <h2 id="tituloClientes" tabindex="-1">Clientes</h2>
@@ -1781,86 +1790,113 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   });
 
 
-  // Reparto semanal simplificado: asignaciones persistentes independientes de las rutas fechadas.
-  let repartoMapa=null,repartoMarkers=null,repartoPin=null,repartoCoords=null,repartoRows=[],repartoLoadSeq=0;
+  // Reparto semanal por plantillas elegidas manualmente. El mapa antiguo permanece en opciones avanzadas.
+  let repartoMapa=null,repartoMarkers=null,repartoPin=null,repartoCoords=null,repartoRows=[],repartoSemanas=[],repartoEditId=null,repartoLoadSeq=0;
   const repartoMsg=t=>{$('repartoEstado').textContent=t;};
+  const repartoSemana=()=>Number($('repartoSemana').value);
   function repartoClientes(){
     const search=M.searchText($('repartoBuscar').value.trim()),prev=$('repartoCliente').value;
-    const items=records.filter(c=>!search||M.searchText((c.nombre_negocio||'')+' '+(c.direccion||'')).includes(search)).sort((a,b)=>a.nombre_negocio.localeCompare(b.nombre_negocio,'es')).slice(0,300);
-    $('repartoCliente').replaceChildren(new Option('Selecciona un cliente',''));
+    const items=records.filter(c=>!search||M.searchText((c.nombre_negocio||'')+' '+(c.direccion||'')).includes(search)).sort((a,b)=>(a.nombre_negocio||'').localeCompare(b.nombre_negocio||'','es')).slice(0,300);
+    $('repartoCliente').replaceChildren(new Option('Sin cliente asignado',''));
     for(const c of items)$('repartoCliente').add(new Option(c.nombre_negocio+' · '+(c.direccion||'Sin dirección'),String(c.id)));
     if(items.some(c=>String(c.id)===prev))$('repartoCliente').value=prev;
-    repartoSeleccion();
   }
-  function repartoSeleccion(){
-    const id=$('repartoCliente').value,day=Number($('repartoDia').value);
-    const existing=repartoRows.find(x=>String(x.cliente_id)===id&&x.dia===day);
-    repartoCoords=existing?{lat:existing.lat,lng:existing.lng}:null;
-    if(repartoPin){repartoMapa.removeLayer(repartoPin);repartoPin=null;}
-    if(repartoCoords&&repartoMapa){repartoPin=L.marker([repartoCoords.lat,repartoCoords.lng]).addTo(repartoMapa);repartoMapa.setView([repartoCoords.lat,repartoCoords.lng],16);}
-    $('repartoGuardar').disabled=!id||!repartoCoords;
-    repartoMsg(!id?'Selecciona un cliente y toca el mapa.':existing?'Ubicación guardada. Puedes tocar otro punto para corregirla.':'Ahora toca en el mapa la ubicación exacta de este cliente.');
+  function repartoCancelar(){
+    repartoCoords=null;repartoEditId=null;
+    if(repartoPin&&repartoMapa)repartoMapa.removeLayer(repartoPin);
+    repartoPin=null;$('repartoAsignar').style.display='none';
+  }
+  function repartoEditar(row){
+    repartoCoords={lat:Number(row.lat),lng:Number(row.lng)};
+    repartoEditId=row.id||null;
+    $('repartoBuscar').value='';repartoClientes();
+    $('repartoCliente').value=row.cliente_id?String(row.cliente_id):'';
+    $('repartoAsignarTitulo').textContent=repartoEditId?'📍 Editar parada':'📍 Nueva parada';
+    $('repartoCoordenadas').textContent='Coordenadas: '+repartoCoords.lat.toFixed(6)+', '+repartoCoords.lng.toFixed(6);
+    $('repartoAsignar').style.display='block';
+    if(repartoPin&&repartoMapa)repartoMapa.removeLayer(repartoPin);
+    if(repartoMapa){repartoPin=L.marker([repartoCoords.lat,repartoCoords.lng],{draggable:true}).addTo(repartoMapa);repartoPin.on('dragend',()=>{const p=repartoPin.getLatLng();repartoCoords={lat:p.lat,lng:p.lng};$('repartoCoordenadas').textContent='Coordenadas: '+p.lat.toFixed(6)+', '+p.lng.toFixed(6);});}
+    repartoMsg('Punto marcado. Puedes asignar un cliente o guardarlo sin cliente.');
   }
   function repartoInitMap(){
     if(repartoMapa||!window.L)return;
     repartoMapa=L.map('repartoMapa').setView([-34.17,-70.74],13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(repartoMapa);
     repartoMarkers=L.layerGroup().addTo(repartoMapa);
-    repartoMapa.on('click',e=>{
-      if(!$('repartoCliente').value)return repartoMsg('Primero selecciona un cliente registrado.');
-      repartoCoords={lat:e.latlng.lat,lng:e.latlng.lng};
-      if(repartoPin)repartoMapa.removeLayer(repartoPin);
-      repartoPin=L.marker(e.latlng).addTo(repartoMapa);
-      $('repartoGuardar').disabled=false;
-      repartoMsg('Punto seleccionado. Pulsa «Guardar día y ubicación».');
-    });
+    repartoMapa.on('click',e=>{if(!repartoSemana())return repartoMsg('Primero crea o selecciona una semana de reparto.');repartoEditar({lat:e.latlng.lat,lng:e.latlng.lng});});
   }
   function repartoDibujar(){
-    $('repartoLista').replaceChildren();
-    if(repartoMarkers)repartoMarkers.clearLayers();
-    const day=Number($('repartoDia').value),items=repartoRows.filter(x=>x.dia===day);
+    $('repartoLista').replaceChildren();if(repartoMarkers)repartoMarkers.clearLayers();
+    const day=Number($('repartoDia').value),week=repartoSemana();
+    const items=repartoRows.filter(x=>x.dia===day&&Number(x.semana_id)===week);
+    const bounds=[];
     items.forEach((r,i)=>{
       const c=records.find(x=>String(x.id)===String(r.cliente_id));
-      const line=node('div',(i+1)+'. '+(c?.nombre_negocio||'Cliente')+' · '+(c?.direccion||'Sin dirección'),'ruta-choice');
-      const btn=node('button','📍 Ver / corregir');btn.type='button';
-      btn.onclick=()=>{$('repartoBuscar').value='';repartoClientes();$('repartoCliente').value=String(r.cliente_id);repartoSeleccion();};
-      line.append(btn);$('repartoLista').append(line);
-      if(repartoMarkers){
-        const icon=L.divIcon({className:'',html:'<div class="ruta-mapa-marca">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});
-        L.marker([r.lat,r.lng],{icon}).bindPopup((c?.nombre_negocio||'Cliente')).addTo(repartoMarkers);
-      }
+      const name=c?.nombre_negocio||'Parada sin cliente';
+      const line=node('div',(i+1)+'. '+name+(c?.direccion?' · '+c.direccion:''),'ruta-choice');
+      const btn=node('button','📍 Ver / asignar');btn.type='button';btn.onclick=()=>{repartoEditar(r);repartoMapa?.setView([r.lat,r.lng],16);};line.append(btn);$('repartoLista').append(line);
+      if(repartoMarkers){const icon=L.divIcon({className:'',html:'<div class="ruta-mapa-marca">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});L.marker([r.lat,r.lng],{icon}).bindPopup(name).on('click',()=>repartoEditar(r)).addTo(repartoMarkers);bounds.push([r.lat,r.lng]);}
     });
-    if(!items.length)$('repartoLista').append(node('p','Todavía no hay clientes asignados a este día.','aviso'));
+    if(!items.length)$('repartoLista').append(node('p','No hay paradas para este día. Toca el mapa para añadir una.','aviso'));
+    if(bounds.length&&repartoMapa)repartoMapa.fitBounds(bounds,{padding:[30,30],maxZoom:15});
   }
   async function repartoCargar(){
     if(!user||!client)return;
-    const seq=++repartoLoadSeq,uid=user.id;
-    repartoInitMap();repartoClientes();repartoMsg('Cargando reparto semanal…');
+    const seq=++repartoLoadSeq,uid=user.id,oldWeek=$('repartoSemana').value;
+    repartoInitMap();repartoMsg('Cargando semanas y paradas…');
     try{
-      const {data,error}=await client.from('olimpo_reparto_semanal').select('id,cliente_id,dia,lat,lng').eq('propietario_id',uid).order('id');
-      if(error)throw error;
+      const [w,p]=await Promise.all([
+        client.from('olimpo_semanas_reparto').select('id,nombre').eq('propietario_id',uid).order('id'),
+        client.from('olimpo_reparto_semanal').select('id,semana_id,cliente_id,dia,lat,lng').eq('propietario_id',uid).order('id')
+      ]);
+      if(w.error)throw w.error;if(p.error)throw p.error;
       if(seq!==repartoLoadSeq||!user||user.id!==uid)return;
-      repartoRows=data||[];repartoDibujar();repartoSeleccion();
+      repartoSemanas=w.data||[];repartoRows=p.data||[];
+      $('repartoSemana').replaceChildren(new Option('Seleccionar semana',''));
+      for(const row of repartoSemanas)$('repartoSemana').add(new Option(row.nombre,String(row.id)));
+      if(repartoSemanas.some(x=>String(x.id)===oldWeek))$('repartoSemana').value=oldWeek;
+      else if(repartoSemanas.length)$('repartoSemana').value=String(repartoSemanas[0].id);
+      repartoCancelar();repartoClientes();repartoDibujar();
+      repartoMsg('Selecciona un día y toca el mapa para guardar una parada.');
       if(repartoMapa)setTimeout(()=>repartoMapa?.invalidateSize(),100);
     }catch(e){repartoMsg('No se pudo cargar el reparto: '+M.errorText(e));}
   }
-  $('repartoDia').addEventListener('change',()=>{repartoDibujar();repartoSeleccion();});
+  $('repartoSemana').addEventListener('change',()=>{repartoCancelar();repartoDibujar();});
+  $('repartoDia').addEventListener('change',()=>{repartoCancelar();repartoDibujar();});
   $('repartoBuscar').addEventListener('input',repartoClientes);
-  $('repartoCliente').addEventListener('change',repartoSeleccion);
+  $('repartoCancelar').addEventListener('click',repartoCancelar);
   $('repartoActualizar').addEventListener('click',async()=>{await refresh();await repartoCargar();});
-  $('repartoGuardar').addEventListener('click',async()=>{
-    const uid=user?.id,id=$('repartoCliente').value,day=Number($('repartoDia').value),pos=repartoCoords;
-    if(!uid||!id||!pos)return;
-    $('repartoGuardar').disabled=true;repartoMsg('Guardando en Supabase…');
+  $('repartoGPS').addEventListener('click',()=>{
+    if(!navigator.geolocation)return repartoMsg('GPS no disponible en este dispositivo.');
+    repartoMsg('Buscando tu ubicación…');
+    navigator.geolocation.getCurrentPosition(p=>{repartoMapa?.setView([p.coords.latitude,p.coords.longitude],17);repartoMsg('Ubicación GPS centrada. Toca el mapa para guardar una parada.');},e=>repartoMsg('No se pudo obtener el GPS: '+e.message),{enableHighAccuracy:true,timeout:15000});
+  });
+  $('repartoSemanaCrear').addEventListener('click',async()=>{
+    const nombre=$('repartoSemanaNombre').value.trim();
+    if(!nombre||!user)return repartoMsg('Escribe un nombre para la semana.');
+    $('repartoSemanaCrear').disabled=true;
     try{
-      const {error}=await client.from('olimpo_reparto_semanal').upsert({propietario_id:uid,cliente_id:Number(id),dia:day,lat:pos.lat,lng:pos.lng,updated_at:new Date().toISOString()},{onConflict:'propietario_id,cliente_id,dia'});
+      const {data,error}=await client.from('olimpo_semanas_reparto').insert({propietario_id:user.id,nombre}).select('id').single();
       if(error)throw error;
-      await repartoCargar();repartoMsg('✅ Cliente, día y ubicación guardados sin duplicados.');
+      $('repartoSemanaNombre').value='';
+      await repartoCargar();$('repartoSemana').value=String(data.id);repartoDibujar();repartoMsg('✅ Semana «'+nombre+'» creada.');
+    }catch(e){repartoMsg('No se pudo crear la semana: '+M.errorText(e));}
+    finally{$('repartoSemanaCrear').disabled=false;}
+  });
+  $('repartoGuardar').addEventListener('click',async()=>{
+    const uid=user?.id,week=repartoSemana(),day=Number($('repartoDia').value),pos=repartoCoords,id=$('repartoCliente').value;
+    if(!uid||!week||!pos)return repartoMsg('Selecciona una semana y marca un punto en el mapa.');
+    if(id&&repartoRows.some(r=>r.id!==repartoEditId&&Number(r.semana_id)===week&&r.dia===day&&String(r.cliente_id)===id))return repartoMsg('Este cliente ya está en el mismo día y semana. Edita su parada existente.');
+    $('repartoGuardar').disabled=true;repartoMsg('Guardando punto en Supabase…');
+    try{
+      const payload={propietario_id:uid,semana_id:week,dia:day,cliente_id:id?Number(id):null,lat:pos.lat,lng:pos.lng,updated_at:new Date().toISOString()};
+      const query=repartoEditId?client.from('olimpo_reparto_semanal').update(payload).eq('id',repartoEditId).eq('propietario_id',uid):client.from('olimpo_reparto_semanal').insert(payload);
+      const {error}=await query;if(error)throw error;
+      await repartoCargar();repartoMsg('✅ Parada guardada en la semana seleccionada.');
     }catch(e){repartoMsg('No se pudo guardar: '+M.errorText(e));}
     finally{$('repartoGuardar').disabled=false;}
   });
-  $('repartoSimplePanel').addEventListener('pointerdown',()=>{if(!repartoMapa&&user)repartoCargar();},{once:true});
-  const repartoObserver=new MutationObserver(()=>{if(!$('rutas').classList.contains('oculto')&&user){repartoCargar();}});
+  const repartoObserver=new MutationObserver(()=>{if(!$('rutas').classList.contains('oculto')&&user)repartoCargar();});
   repartoObserver.observe($('rutas'),{attributes:true,attributeFilter:['class']});
 
   lock();
