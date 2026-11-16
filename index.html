@@ -279,8 +279,10 @@ input[type=file] {font-size:14px;padding:12px 8px}
   <p id="rutaResumen" class="ruta-progress"></p>
   <div class="ruta-toolbar"><button type="button" id="rutaOrdenar">Ordenar por cercanía aproximada</button><button type="button" id="rutaUbicarOrigen">📍 Ubicar punto de salida</button></div><div class="ruta-toolbar"><button type="button" id="rutaGPSIniciar">📍 Mi ubicación GPS</button><button type="button" id="rutaGPSDetener" disabled>⏹ Detener GPS</button></div><p id="rutaGPSEstado" class="aviso" role="status">GPS apagado. Solo se activa con tu permiso; no se guarda en Olimpo.</p>
   <p class="aviso">La ordenación usa distancia en línea recta y NO reemplaza una ruta optimizada por calles. El mapa requiere internet; los puntos se ubican uno a uno con confirmación.</p>
+  <div class="ruta-toolbar"><button type="button" id="rutaModoAñadir" class="activo">＋ Añadir parada en mapa</button><button type="button" id="rutaModoCancelar" hidden>Cancelar selección</button></div>
+  <p id="rutaModoEstado" class="aviso" role="status">Selecciona una ruta y pulsa «Añadir parada en mapa».</p>
   <div id="rutaMapa" role="region" aria-label="Mapa de paradas de la ruta"></div>
-  <p class="aviso">Mantén presionado el mapa para añadir una parada en ese punto. En computador, usa clic derecho.</p>
+  <p class="aviso">Para añadir una parada, pulsa el botón y luego toca el mapa una vez. También puedes mantener presionado el mapa.</p>
   <dialog id="rutaDialogNuevaParada" aria-labelledby="rutaNuevaParadaTitulo">
     <h3 id="rutaNuevaParadaTitulo">📍 Añadir parada aquí</h3>
     <p class="aviso">Elige un cliente existente para vincularlo al punto que marcaste.</p>
@@ -1342,7 +1344,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   let rutas=[],rutasReady=false,rutaBusy=false,rutaLoad=0,rutaActiva='',rutaOrigenPanel='admin';
   let rutaClientesElegidos=new Set(),rutaMap=null,rutaMapMarkers=null,rutaMapLine=null,rutaMapAsignacion=null,rutaGeoUltimo=0,rutaGeoConfirmado=false;
   let rutaGPSWatch=null,rutaGPSMarker=null,rutaGPSAccuracy=null,rutaGPSFollowing=false,rutaGPSLast=null;
-  let rutaPuntoNuevo=null;
+  let rutaPuntoNuevo=null,rutaModoAñadir=false;
   const rutaMensaje=t=>{$('estadoRutas').textContent=t};
   const rutaCliente=id=>records.find(c=>c.id===String(id));
   const rutaSeleccionada=()=>rutas.find(r=>r.id===rutaActiva);
@@ -1350,7 +1352,8 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   const rutaFechaHoy=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Santiago'});
   function resetRoutes(){
     rutaDetenerGPS();
-    $('rutaDialogNuevaParada').close();rutaPuntoNuevo=null;
+    if($('rutaDialogNuevaParada').open)$('rutaDialogNuevaParada').close();rutaPuntoNuevo=null;rutaModoAñadir=false;
+    $('rutaModoCancelar').hidden=true;$('rutaModoEstado').textContent='Selecciona una ruta y pulsa «Añadir parada en mapa».';
     rutaLoad++;rutas=[];rutasReady=false;rutaBusy=false;rutaActiva='';rutaClientesElegidos=new Set();rutaMapAsignacion=null;
     if(rutaMap){rutaMap.remove();rutaMap=null;rutaMapMarkers=null;rutaMapLine=null;}
     $('rutaActual').replaceChildren(new Option('Selecciona una ruta',''));
@@ -1408,13 +1411,14 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     rutaMap.on('dragstart',()=>{if(rutaGPSWatch!==null)rutaGPSFollowing=false;});
     rutaMap.on('contextmenu',e=>{
       if(rutaMapAsignacion||rutaBusy||!rutaSeleccionada())return;
-      rutaPuntoNuevo={lat:e.latlng.lat,lng:e.latlng.lng};
-      $('rutaNuevaParadaCoords').textContent='Ubicación: '+e.latlng.lat.toFixed(6)+', '+e.latlng.lng.toFixed(6);
-      $('rutaNuevaParadaBuscar').value='';
-      rutaRellenarClientesNuevaParada();
-      $('rutaDialogNuevaParada').showModal();
+      rutaAbrirNuevaParada(e.latlng);
     });
     rutaMap.on('click',async e=>{
+      if(rutaModoAñadir){
+        if(rutaBusy)return;
+        rutaAbrirNuevaParada(e.latlng);
+        return;
+      }
       if(!rutaMapAsignacion||rutaBusy)return;
       const item=rutaMapAsignacion;
       rutaMapAsignacion=null;
@@ -1588,6 +1592,37 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   }
 
 
+
+  function rutaCambiarModoAñadir(on){
+    rutaModoAñadir=!!on;
+    $('rutaModoCancelar').hidden=!rutaModoAñadir;
+    $('rutaModoAñadir').textContent=rutaModoAñadir?'📍 Toca el lugar en el mapa':'＋ Añadir parada en mapa';
+    $('rutaModoEstado').textContent=rutaModoAñadir?'Ahora toca UNA VEZ el lugar exacto en el mapa para añadir la parada.':'Selecciona una ruta y pulsa «Añadir parada en mapa».';
+    if(rutaMap)rutaMap.getContainer().style.cursor=rutaModoAñadir?'crosshair':'';
+  }
+  function rutaAbrirNuevaParada(latlng){
+    if(!rutaSeleccionada()){
+      rutaCambiarModoAñadir(false);
+      return rutaMensaje('Primero crea o selecciona una ruta en «Mis rutas guardadas».');
+    }
+    if(!records.length)return rutaMensaje('Primero carga los clientes desde Supabase.');
+    if(rutaSeleccionada().paradas.length>=60)return rutaMensaje('La ruta alcanzó el límite de 60 paradas.');
+    rutaPuntoNuevo={lat:latlng.lat,lng:latlng.lng};
+    rutaCambiarModoAñadir(false);
+    $('rutaNuevaParadaCoords').textContent='Ubicación: '+latlng.lat.toFixed(6)+', '+latlng.lng.toFixed(6);
+    $('rutaNuevaParadaBuscar').value='';
+    rutaRellenarClientesNuevaParada();
+    $('rutaDialogNuevaParada').showModal();
+  }
+  $('rutaModoAñadir').addEventListener('click',()=>{
+    if(!rutaSeleccionada())return rutaMensaje('Primero crea o selecciona una ruta en «Mis rutas guardadas».');
+    if(!rutaMap)return rutaMensaje('El mapa no se cargó. Comprueba tu conexión a internet.');
+    rutaMapAsignacion=null;
+    rutaCambiarModoAñadir(true);
+    $('rutaMapa').scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  $('rutaModoCancelar').addEventListener('click',()=>rutaCambiarModoAñadir(false));
+
   function rutaRellenarClientesNuevaParada(){
     const r=rutaSeleccionada(),search=M.searchText($('rutaNuevaParadaBuscar').value.trim()),select=$('rutaNuevaParadaCliente');
     const currentValue=select.value;
@@ -1716,7 +1751,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     if(!confirm('¿Agregar '+candidates.length+' clientes a esta ruta?'))return;
     rutaModificar(x=>({paradas:[...x.paradas,...candidates.map(cliente_id=>({cliente_id,estado:'pendiente'}))]}),'Clientes agregados a la ruta.').then(()=>{rutaClientesElegidos.clear();rutaDibujarCandidatos();});
   });
-  $('rutaActual').addEventListener('change',()=>{rutaActiva=$('rutaActual').value;rutaMapAsignacion=null;rutaDibujarParadas();});
+  $('rutaActual').addEventListener('change',()=>{rutaActiva=$('rutaActual').value;rutaMapAsignacion=null;rutaCambiarModoAñadir(false);rutaDibujarParadas();});
   $('rutaActualizar').addEventListener('click',rutaCargar);
   $('rutaOrdenar').addEventListener('click',rutaOrdenarPorCercania);
   $('rutaUbicarOrigen').addEventListener('click',rutaUbicarSalida);
