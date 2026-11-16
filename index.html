@@ -1791,7 +1791,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
 
 
   // Reparto semanal por plantillas elegidas manualmente. El mapa antiguo permanece en opciones avanzadas.
-  let repartoMapa=null,repartoMarkers=null,repartoPin=null,repartoCoords=null,repartoRows=[],repartoSemanas=[],repartoEditId=null,repartoLoadSeq=0;
+  let repartoMapa=null,repartoMarkers=null,repartoPin=null,repartoCoords=null,repartoRows=[],repartoSemanas=[],repartoEditId=null,repartoLoadSeq=0,repartoGpsMarker=null,repartoGpsAccuracy=null,repartoGpsWatch=null,repartoGpsCentered=false;
   const repartoMsg=t=>{$('repartoEstado').textContent=t;};
   const repartoSemana=()=>Number($('repartoSemana').value);
   function repartoClientes(){
@@ -1843,7 +1843,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   async function repartoCargar(){
     if(!user||!client)return;
     const seq=++repartoLoadSeq,uid=user.id,oldWeek=$('repartoSemana').value;
-    repartoInitMap();repartoMsg('Cargando semanas y paradas…');
+    repartoInitMap();repartoIniciarGPS();repartoMsg('Cargando semanas y paradas…');
     try{
       const [w,p]=await Promise.all([
         client.from('olimpo_semanas_reparto').select('id,nombre').eq('propietario_id',uid).order('id'),
@@ -1866,10 +1866,30 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   $('repartoBuscar').addEventListener('input',repartoClientes);
   $('repartoCancelar').addEventListener('click',repartoCancelar);
   $('repartoActualizar').addEventListener('click',async()=>{await refresh();await repartoCargar();});
+  function repartoActualizarGPS(p,centrar=false){
+    if(!repartoMapa||!window.L)return;
+    const lat=p.coords.latitude,lng=p.coords.longitude,point=[lat,lng],accuracy=p.coords.accuracy||0;
+    if(!repartoGpsMarker){
+      repartoGpsMarker=L.circleMarker(point,{radius:9,color:'#ffffff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(repartoMapa).bindPopup('📍 Tu ubicación actual');
+    }else repartoGpsMarker.setLatLng(point);
+    if(!repartoGpsAccuracy)repartoGpsAccuracy=L.circle(point,{radius:accuracy,color:'#2563eb',weight:1,fillOpacity:.08,opacity:.35,interactive:false}).addTo(repartoMapa);
+    else repartoGpsAccuracy.setLatLng(point).setRadius(accuracy);
+    if(centrar||!repartoGpsCentered){repartoMapa.setView(point,Math.max(repartoMapa.getZoom(),16));repartoGpsCentered=true;}
+    $('repartoGPS').textContent='📍 Centrar mi ubicación';
+  }
+  function repartoIniciarGPS(){
+    if(!navigator.geolocation||repartoGpsWatch!==null)return;
+    repartoGpsWatch=navigator.geolocation.watchPosition(
+      p=>{repartoActualizarGPS(p);},
+      e=>{if(e.code===1)repartoMsg('Activa el permiso de ubicación en Chrome para ver tu punto azul.');},
+      {enableHighAccuracy:true,maximumAge:5000,timeout:20000}
+    );
+  }
   $('repartoGPS').addEventListener('click',()=>{
     if(!navigator.geolocation)return repartoMsg('GPS no disponible en este dispositivo.');
-    repartoMsg('Buscando tu ubicación…');
-    navigator.geolocation.getCurrentPosition(p=>{repartoMapa?.setView([p.coords.latitude,p.coords.longitude],17);repartoMsg('Ubicación GPS centrada. Toca el mapa para guardar una parada.');},e=>repartoMsg('No se pudo obtener el GPS: '+e.message),{enableHighAccuracy:true,timeout:15000});
+    repartoMsg('Buscando tu ubicación GPS…');
+    navigator.geolocation.getCurrentPosition(p=>{repartoActualizarGPS(p,true);repartoMsg('📍 Tu ubicación aparece en azul y se actualizará mientras tengas abierta la ruta.');},e=>repartoMsg('No se pudo obtener el GPS: '+e.message),{enableHighAccuracy:true,timeout:15000});
+    repartoIniciarGPS();
   });
   $('repartoSemanaCrear').addEventListener('click',async()=>{
     const nombre=$('repartoSemanaNombre').value.trim();
@@ -1896,7 +1916,12 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     }catch(e){repartoMsg('No se pudo guardar: '+M.errorText(e));}
     finally{$('repartoGuardar').disabled=false;}
   });
-  const repartoObserver=new MutationObserver(()=>{if(!$('rutas').classList.contains('oculto')&&user)repartoCargar();});
+  const repartoObserver=new MutationObserver(()=>{
+    if(!$('rutas').classList.contains('oculto')&&user)repartoCargar();
+    else if($('rutas').classList.contains('oculto')&&repartoGpsWatch!==null&&navigator.geolocation){
+      navigator.geolocation.clearWatch(repartoGpsWatch);repartoGpsWatch=null;
+    }
+  });
   repartoObserver.observe($('rutas'),{attributes:true,attributeFilter:['class']});
 
   lock();
