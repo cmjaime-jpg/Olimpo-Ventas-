@@ -140,7 +140,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
 .ruta-parada p{margin:4px 0;font-size:13px;overflow-wrap:anywhere}
 .ruta-parada select{max-width:100%}
 .ruta-mapa-marca{display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid white;font-weight:bold;color:#fff;background:#ba4545;box-shadow:0 1px 6px #222;width:28px;height:28px}
-.ruta-mapa-marca.verde{background:#248953}.ruta-mapa-marca.ambar{background:#aa7a23}
+.ruta-mapa-marca.verde{background:#248953}.ruta-mapa-marca.ambar{background:#aa7a23}.ruta-gps-dot{width:20px;height:20px;border:3px solid white;border-radius:50%;background:#2189f5;box-shadow:0 0 0 7px #2189f544,0 2px 8px #0008}.ruta-mapa-marca.azul{background:#247de0}
 .ruta-enlace{display:inline-block;color:#f0c878;padding:10px 5px;overflow-wrap:anywhere}
 .ruta-progress{font-weight:bold;color:var(--oro)}
 .ruta-mensaje{color:var(--oro);line-height:1.5;overflow-wrap:anywhere}
@@ -277,7 +277,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
   </div>
   <div class="ruta-toolbar"><button type="button" id="rutaActualizar">Actualizar desde Supabase</button><button type="button" id="rutaBorrar">Eliminar ruta</button></div>
   <p id="rutaResumen" class="ruta-progress"></p>
-  <div class="ruta-toolbar"><button type="button" id="rutaOrdenar">Ordenar por cercanía aproximada</button><button type="button" id="rutaUbicarOrigen">📍 Ubicar punto de salida</button></div>
+  <div class="ruta-toolbar"><button type="button" id="rutaOrdenar">Ordenar por cercanía aproximada</button><button type="button" id="rutaUbicarOrigen">📍 Ubicar punto de salida</button></div><div class="ruta-toolbar"><button type="button" id="rutaGPSIniciar">📍 Mi ubicación GPS</button><button type="button" id="rutaGPSDetener" disabled>⏹ Detener GPS</button></div><p id="rutaGPSEstado" class="aviso" role="status">GPS apagado. Solo se activa con tu permiso; no se guarda en Olimpo.</p>
   <p class="aviso">La ordenación usa distancia en línea recta y NO reemplaza una ruta optimizada por calles. El mapa requiere internet; los puntos se ubican uno a uno con confirmación.</p>
   <div id="rutaMapa" role="region" aria-label="Mapa de paradas de la ruta"></div>
   <p class="aviso" id="rutaMapaEstado">Las paradas sin ubicación pueden localizarse desde la lista.</p>
@@ -697,6 +697,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   }
   window.mostrar = panel => {
     if (!profile) return;
+    rutaDetenerGPS();
     if (!isAdmin()) panel = 'vendedor';
     toggle('rutas',false); toggle('cobros',false); toggle('pedidos',false); toggle('inventario',false); toggle('clientes',false); toggle('admin',panel === 'admin'); toggle('vendedor',panel === 'vendedor');
     $('btnAdmin').classList.toggle('activo',panel === 'admin'); $('btnVendedor').classList.toggle('activo',panel === 'vendedor');
@@ -1331,12 +1332,14 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   const RUTA_ESTADOS=[['pendiente','🔴 Pendiente'],['visitado','🟢 Visitado'],['compro','🟢 Compró'],['no_compro','🟠 No compró'],['no_atendido','🟠 No atendido']];
   let rutas=[],rutasReady=false,rutaBusy=false,rutaLoad=0,rutaActiva='',rutaOrigenPanel='admin';
   let rutaClientesElegidos=new Set(),rutaMap=null,rutaMapMarkers=null,rutaMapLine=null,rutaMapAsignacion=null,rutaGeoUltimo=0,rutaGeoConfirmado=false;
+  let rutaGPSWatch=null,rutaGPSMarker=null,rutaGPSAccuracy=null,rutaGPSFollowing=false,rutaGPSLast=null;
   const rutaMensaje=t=>{$('estadoRutas').textContent=t};
   const rutaCliente=id=>records.find(c=>c.id===String(id));
   const rutaSeleccionada=()=>rutas.find(r=>r.id===rutaActiva);
   const rutaUbicada=p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lng))&&p.lat!=null&&p.lng!=null;
   const rutaFechaHoy=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'America/Santiago'});
   function resetRoutes(){
+    rutaDetenerGPS();
     rutaLoad++;rutas=[];rutasReady=false;rutaBusy=false;rutaActiva='';rutaClientesElegidos=new Set();rutaMapAsignacion=null;
     if(rutaMap){rutaMap.remove();rutaMap=null;rutaMapMarkers=null;rutaMapLine=null;}
     $('rutaActual').replaceChildren(new Option('Selecciona una ruta',''));
@@ -1391,6 +1394,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
     }).addTo(rutaMap);
     rutaMapMarkers=L.layerGroup().addTo(rutaMap);
+    rutaMap.on('dragstart',()=>{if(rutaGPSWatch!==null)rutaGPSFollowing=false;});
     rutaMap.on('click',async e=>{
       if(!rutaMapAsignacion||rutaBusy)return;
       const item=rutaMapAsignacion;
@@ -1416,7 +1420,14 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       const popup=node('div',(i+1)+'. '+(c?.nombre_negocio||'Cliente no disponible')+' · '+(p.estado||'pendiente'));
       L.marker(pos,{icon}).bindPopup(popup).addTo(rutaMapMarkers);bounds.push(pos);track.push(pos);
     });
-    if(track.length>=2)rutaMapLine=L.polyline(track,{color:'#ddaf51',weight:3,dashArray:'7 7'}).addTo(rutaMap);
+    if(track.length>=2){
+      rutaMapLine=L.layerGroup().addTo(rutaMap);
+      for(let i=1;i<track.length;i++){
+        const estado=r.paradas.filter(rutaUbicada)[i-1]?.estado||'pendiente';
+        const color=estado==='visitado'||estado==='compro'?'#36a66a':estado==='no_compro'||estado==='no_atendido'?'#dc9c30':'#d95151';
+        L.polyline([track[i-1],track[i]],{color,weight:5,opacity:0.85,dashArray:'9 7'}).addTo(rutaMapLine);
+      }
+    }
     if(bounds.length)rutaMap.fitBounds(bounds,{padding:[24,24],maxZoom:15});
     else rutaMap.setView([-34.17,-70.74],12);
     $('rutaMapaEstado').textContent=r.paradas.filter(rutaUbicada).length+' de '+r.paradas.length+' paradas ubicadas. La línea punteada es visual: NO representa calles ni tiempo de viaje.';
@@ -1556,6 +1567,63 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     if(!confirm('Resultado para el origen: '+coords.display+'\n¿Guardar?'))return;
     await rutaModificar(()=>({origen_lat:coords.lat,origen_lng:coords.lng}),'Punto de salida ubicado. Comprueba el mapa.');
   }
+
+  // Seguimiento GPS local, sin envío a Supabase ni registro de historial.
+  function rutaGPSActualizarBotones(){
+    $('rutaGPSIniciar').textContent=rutaGPSWatch===null?'📍 Mi ubicación GPS':'🎯 Centrar GPS';
+    $('rutaGPSDetener').disabled=rutaGPSWatch===null;
+  }
+  function rutaDetenerGPS(){
+    if(rutaGPSWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(rutaGPSWatch);
+    rutaGPSWatch=null;rutaGPSFollowing=false;rutaGPSLast=null;
+    if(rutaMap&&rutaGPSMarker)rutaMap.removeLayer(rutaGPSMarker);
+    if(rutaMap&&rutaGPSAccuracy)rutaMap.removeLayer(rutaGPSAccuracy);
+    rutaGPSMarker=null;rutaGPSAccuracy=null;
+    $('rutaGPSEstado').textContent='GPS apagado. No se guardó ningún historial de ubicación.';
+    rutaGPSActualizarBotones();
+  }
+  function rutaIniciarGPS(){
+    if(!rutaMap){$('rutaGPSEstado').textContent='El mapa aún no está disponible.';return;}
+    if(rutaGPSWatch!==null){
+      rutaGPSFollowing=true;
+      if(rutaGPSLast)rutaMap.setView(rutaGPSLast,Math.max(16,rutaMap.getZoom()));
+      $('rutaGPSEstado').textContent='Seguimiento GPS activo.';
+      return;
+    }
+    if(!window.isSecureContext||!navigator.geolocation){
+      $('rutaGPSEstado').textContent='Para utilizar GPS se necesita HTTPS y permiso de ubicación del navegador.';
+      return;
+    }
+    rutaGPSFollowing=true;
+    $('rutaGPSEstado').textContent='Solicitando permiso de ubicación al celular…';
+    try{
+      const id=navigator.geolocation.watchPosition(pos=>{
+        if(rutaGPSWatch===null||!rutaMap||$('rutas').classList.contains('oculto'))return;
+        const {latitude,longitude,accuracy}=pos.coords;
+        if(!Number.isFinite(latitude)||!Number.isFinite(longitude))return;
+        const pt=[latitude,longitude];rutaGPSLast=pt;
+        if(!rutaGPSMarker){
+          const icon=L.divIcon({className:'',html:'<div class="ruta-gps-dot"></div>',iconSize:[26,26],iconAnchor:[13,13]});
+          rutaGPSMarker=L.marker(pt,{icon,zIndexOffset:3000}).bindPopup('Tu ubicación GPS actual').addTo(rutaMap);
+        }else rutaGPSMarker.setLatLng(pt);
+        if(Number.isFinite(accuracy)){
+          if(!rutaGPSAccuracy)rutaGPSAccuracy=L.circle(pt,{radius:Math.max(accuracy,1),color:'#2189f5',weight:1,fillOpacity:0.08,interactive:false}).addTo(rutaMap);
+          else rutaGPSAccuracy.setLatLng(pt).setRadius(Math.max(accuracy,1));
+        }
+        if(rutaGPSFollowing)rutaMap.setView(pt,Math.max(16,rutaMap.getZoom()),{animate:true});
+        $('rutaGPSEstado').textContent='🔵 GPS activo · Precisión aproximada '+(Number.isFinite(accuracy)?'±'+Math.round(accuracy)+' m':'desconocida')+(rutaGPSFollowing?' · Siguiendo posición':' · Toca Centrar GPS para seguir');
+      },error=>{
+        rutaDetenerGPS();
+        $('rutaGPSEstado').textContent=error.code===1?'Permiso de ubicación rechazado. Revísalo en ajustes del navegador.':error.code===2?'No se pudo obtener tu ubicación. Comprueba que el GPS esté encendido.':'El GPS tardó demasiado. Prueba nuevamente.';
+      },{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+      rutaGPSWatch=id;rutaGPSActualizarBotones();
+    }catch(error){
+      rutaDetenerGPS();$('rutaGPSEstado').textContent='No fue posible iniciar el GPS. Revisa los permisos del navegador.';
+    }
+  }
+  $('rutaGPSIniciar').addEventListener('click',rutaIniciarGPS);
+  $('rutaGPSDetener').addEventListener('click',rutaDetenerGPS);
+
   window.abrirRutas=async()=>{
     if(!profile)return;
     rutaOrigenPanel=$('btnAdmin').classList.contains('activo')?'admin':'vendedor';
@@ -1568,7 +1636,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     setTimeout(()=>{if(rutaMap){rutaMap.invalidateSize();rutaDibujarMapa();}},80);
     if(!rutasReady)await rutaCargar();else{rutaDibujarTodo();rutaControlar();}
   };
-  $('volverRutas').addEventListener('click',()=>window.mostrar(rutaOrigenPanel));
+  $('volverRutas').addEventListener('click',()=>{rutaDetenerGPS();window.mostrar(rutaOrigenPanel);});
   $('rutaSector').addEventListener('change',rutaDibujarCandidatos);
   $('rutaBuscarCliente').addEventListener('input',rutaDibujarCandidatos);
   $('rutaMarcarTodos').addEventListener('click',()=>{
