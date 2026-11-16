@@ -266,7 +266,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
  </div>
  <p id="repartoEstado" class="aviso" role="status" aria-live="polite">Selecciona una semana y toca el mapa para agregar una parada.</p>
  <div id="repartoMapa" style="height:370px;max-width:100%;border-radius:16px;margin:14px 0;z-index:0"></div>
- <div class="ruta-toolbar"><button type="button" id="repartoGPS">📍 Mi ubicación</button><button type="button" id="repartoActualizar">↻ Actualizar</button></div>
+ <div class="ruta-toolbar"><button type="button" id="repartoGPS">📍 Mi ubicación</button><button type="button" id="repartoModoAnadir">➕ Añadir parada en mapa</button><button type="button" id="repartoActualizar">↻ Actualizar</button></div>
  <div id="repartoAsignar" style="display:none;border:1px solid #b79b57;border-radius:12px;padding:12px;margin:12px 0">
   <h4 id="repartoAsignarTitulo">📍 Nueva parada</h4>
   <p class="aviso" id="repartoCoordenadas"></p>
@@ -1791,7 +1791,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
 
 
   // Reparto semanal por plantillas elegidas manualmente. El mapa antiguo permanece en opciones avanzadas.
-  let repartoMapa=null,repartoMarkers=null,repartoPin=null,repartoCoords=null,repartoRows=[],repartoSemanas=[],repartoEditId=null,repartoLoadSeq=0,repartoGpsMarker=null,repartoGpsAccuracy=null,repartoGpsWatch=null,repartoGpsCentered=false;
+  let repartoMapa=null,repartoMarkers=null,repartoPin=null,repartoCoords=null,repartoRows=[],repartoSemanas=[],repartoEditId=null,repartoLoadSeq=0,repartoGpsMarker=null,repartoGpsAccuracy=null,repartoGpsWatch=null,repartoGpsCentered=false,repartoModoAnadir=false;
   const repartoMsg=t=>{$('repartoEstado').textContent=t;};
   const repartoSemana=()=>Number($('repartoSemana').value);
   function repartoClientes(){
@@ -1802,7 +1802,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     if(items.some(c=>String(c.id)===prev))$('repartoCliente').value=prev;
   }
   function repartoCancelar(){
-    repartoCoords=null;repartoEditId=null;
+    repartoCoords=null;repartoEditId=null;repartoModoAnadir=false;repartoActualizarModo();
     if(repartoPin&&repartoMapa)repartoMapa.removeLayer(repartoPin);
     repartoPin=null;$('repartoAsignar').style.display='none';
   }
@@ -1823,8 +1823,16 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     repartoMapa=L.map('repartoMapa').setView([-34.17,-70.74],13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(repartoMapa);
     repartoMarkers=L.layerGroup().addTo(repartoMapa);
-    repartoMapa.on('click',e=>{if(!repartoSemana())return repartoMsg('Primero crea o selecciona una semana de reparto.');repartoEditar({lat:e.latlng.lat,lng:e.latlng.lng});});
+    repartoMapa.on('click',e=>{if(!repartoModoAnadir)return;if(!repartoSemana())return repartoMsg('Primero crea o selecciona una semana de reparto.');repartoModoAnadir=false;repartoActualizarModo();repartoEditar({lat:e.latlng.lat,lng:e.latlng.lng});});
   }
+  function repartoActualizarModo(){
+    $('repartoModoAnadir').textContent=repartoModoAnadir?'✖ Cancelar añadir parada':'➕ Añadir parada en mapa';
+    if(repartoMapa)repartoMapa.getContainer().style.cursor=repartoModoAnadir?'crosshair':'';
+  }
+  $('repartoModoAnadir').addEventListener('click',()=>{
+    repartoModoAnadir=!repartoModoAnadir;repartoActualizarModo();
+    repartoMsg(repartoModoAnadir?'Ahora toca el mapa donde quieras guardar la nueva parada.':'Modo añadir parada desactivado.');
+  });
   function repartoDibujar(){
     $('repartoLista').replaceChildren();if(repartoMarkers)repartoMarkers.clearLayers();
     const day=Number($('repartoDia').value),week=repartoSemana();
