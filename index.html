@@ -430,12 +430,59 @@ input[type=file] {font-size:14px;padding:12px 8px}
     <button type="button" id="nuevoProducto">＋ Nuevo producto</button>
     <button type="button" id="actualizarInventario">Actualizar</button>
   </div>
+  <div id="invExtension" class="card">
+    <h3>Compras y reposición</h3>
+    <p id="invAlert" role="status"></p>
+    <p id="invStatus" role="status" aria-live="polite"></p>
+    <div class="acciones-clientes">
+      <button type="button" id="invReload">Actualizar compras</button>
+      <button type="button" id="invExportStock">Exportar inventario CSV</button>
+      <button type="button" id="invScanSearch">📷 Buscar con cámara</button>
+    </div>
+    <details><summary>Proveedores · añadir</summary>
+      <form id="invSupplierForm" class="campos-clientes">
+        <label>Nombre<input name="nombre" required maxlength="180"></label>
+        <label>Contacto / teléfono<input name="contacto" maxlength="300"></label>
+        <button type="submit">Guardar proveedor</button>
+      </form>
+    </details>
+    <details id="invPurchaseDetails"><summary>Nuevo pedido a proveedor</summary>
+      <form id="invPurchaseForm">
+        <label class="pedido-campo">Proveedor<select id="invSupplier" required></select></label>
+        <div class="acciones-clientes"><button type="button" id="invSuggest">Añadir productos con stock bajo</button></div>
+        <label class="pedido-campo">Producto<select id="invProduct"></select></label>
+        <button type="button" id="invAdd">Añadir producto</button>
+        <p class="aviso">Revisa las cantidades sugeridas y el precio por unidad antes de guardar. Crear el pedido no cambia el stock.</p>
+        <div id="invCart"></div>
+        <label class="pedido-campo">Notas<input id="invNotes" maxlength="1000"></label>
+        <button type="submit" class="activo">Guardar pedido / reintentar</button>
+      </form>
+    </details>
+    <details><summary>Pedidos y recepciones</summary>
+      <button type="button" id="invExportPurchases">Exportar compras CSV</button>
+      <div id="invOrders"></div>
+    </details>
+    <details><summary>Historial de stock y precios de compra</summary>
+      <p class="aviso">Se registra desde la activación del historial. No reconstruye movimientos anteriores.</p>
+      <div class="campos-clientes">
+        <label>Desde<input id="invFrom" type="date"></label><label>Hasta<input id="invTo" type="date"></label>
+        <label>Producto<select id="invHistoryProduct"><option value="">Todos</option></select></label>
+      </div>
+      <div class="acciones-clientes"><button type="button" id="invHistoryLoad">Consultar historial</button><button type="button" id="invExportHistory" disabled>Exportar historial CSV</button></div>
+      <div id="invHistory"></div>
+    </details>
+  </div>
+  <dialog id="invScanner" style="background:#1d1c22;color:#f7f2e8;border:1px solid #e5bc69;border-radius:16px;width:95%;max-width:520px">
+    <h3>Escanear código de barras</h3><p id="invScanStatus" role="status"></p>
+    <video id="invVideo" muted playsinline style="width:100%;max-height:45vh"></video>
+    <button type="button" id="invScanClose">Cerrar cámara</button>
+  </dialog>
   <form id="formProducto" class="card oculto">
     <h3 id="tituloProducto">Nuevo producto</h3>
     <p class="aviso">* Campo obligatorio. Usa la misma unidad para precios y existencias.</p>
     <div class="campos-clientes">
       <label>Nombre *<input name="nombre" required maxlength="180"></label>
-      <label>Código<input name="codigo" maxlength="80" placeholder="Ej.: CONF001"></label>
+      <label>Código<input name="codigo" maxlength="80" placeholder="Ej.: CONF001"><button type="button" id="invScanCode">📷 Escanear código</button></label>
       <label>Categoría<input name="categoria" maxlength="100" list="categoriasProductos"></label>
       <label>Unidad *<input name="unidad" required maxlength="40" list="unidadesProductos" value="unidad" placeholder="unidad, caja, kg…"></label>
       <label>Precio de compra ($) *<input name="precio_compra" type="number" inputmode="decimal" min="0" max="1000000000" step="0.01" required value="0"></label>
@@ -462,7 +509,7 @@ input[type=file] {font-size:14px;padding:12px 8px}
 </p>
 </div>
 </main>
-<footer>OLIMPO VENTAS · Ventas, cobros y rutas · 3.4</footer>
+<footer>OLIMPO VENTAS · Inventario y compras · 3.5</footer>
 
 
 <script>function aviso(){alert("Esta función estará disponible en una próxima versión.");}</script>
@@ -850,6 +897,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     toggle('formProducto',false); productForm.reset(); editingProduct = null; productRef = null; uncertainProduct = false;
   }
   function resetInventory() {
+    invReset();
     inventoryLoad++; products = []; inventoryReady = false; inventoryBusy = false;
     closeProductForm(); $('listaProductos').replaceChildren();
     $('buscarProducto').value = ''; $('filtroInventario').value = 'activos';
@@ -887,6 +935,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
       $('listaProductos').append(card);
     }
     productBusy(inventoryBusy);
+    invProducts();
   }
   async function refreshInventory() {
     if (!isAdmin() || inventoryBusy) return;
@@ -921,7 +970,7 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
   window.abrirInventario = () => {
     if (!isAdmin()) return;
     toggle('rutas',false); toggle('cobros',false); toggle('pedidos',false); toggle('admin',false); toggle('vendedor',false); toggle('clientes',false); toggle('inventario',true);
-    $('tituloInventario').focus(); refreshInventory();
+    $('tituloInventario').focus(); refreshInventory(); invLoad();
   };
   $('volverInventario').addEventListener('click',() => window.mostrar('admin'));
   $('nuevoProducto').addEventListener('click',() => openProduct());
@@ -1931,6 +1980,180 @@ if (typeof module !== 'undefined') module.exports = OlimpoModel;
     }
   });
   repartoObserver.observe($('rutas'),{attributes:true,attributeFilter:['class']});
+
+  // Inventory purchasing: all stock changes are atomic server-side RPCs.
+  let invSuppliers=[],invOrders=[],invCart=[],invHistory=[],invReady=false,invBusy=false,invSeq=0;
+  let invPurchaseAttempt=null,invSupplierAttempt=null;
+  const invReceiptAttempts=new Map();
+  const invMsg=t=>{$('invStatus').textContent=t;};
+  const invDate=t=>new Date(t).toLocaleString('es-CL',{timeZone:'America/Santiago'});
+  const invNum=(v,precision=3)=>Number(v).toFixed(precision).replace(/\.?0+$/,'')||'0';
+  function invControls(){
+    $('invExtension').querySelectorAll('button,input,select').forEach(e=>e.disabled=invBusy||!isAdmin());
+    $('invPurchaseForm').querySelectorAll('input,select,button').forEach(e=>e.disabled=invBusy||!invReady||!inventoryReady);
+    if(invSupplierAttempt) $('invSupplierForm').querySelectorAll('input').forEach(e=>e.disabled=true);
+    if(invPurchaseAttempt) $('invPurchaseForm').querySelectorAll('input,select,button[type=button]').forEach(e=>e.disabled=true);
+    $('invExportHistory').disabled=invBusy||!invHistory.length;
+  }
+  function invReset(){
+    invSeq++;invSuppliers=[];invOrders=[];invCart=[];invHistory=[];invReady=false;invBusy=false;
+    invPurchaseAttempt=null;invSupplierAttempt=null;invReceiptAttempts.clear();
+    ['invCart','invOrders','invHistory','invSupplier','invProduct','invHistoryProduct'].forEach(id=>$(id).replaceChildren());
+    $('invPurchaseForm').reset();$('invSupplierForm').reset();invMsg('');$('invAlert').textContent='';$('invFrom').value='';$('invTo').value='';invStopScan();
+  }
+  function invProducts(){
+    const low=products.filter(p=>p.activo&&Number(p.stock)<=Number(p.stock_minimo));
+    $('invAlert').textContent=inventoryReady?(low.length?'⚠ Productos en stock mínimo o agotados: '+low.length:'✓ No hay productos bajo el mínimo.'):'Actualiza el inventario para ver las alertas.';
+    const old=$('invProduct').value,oldHistory=$('invHistoryProduct').value;
+    $('invProduct').replaceChildren(new Option('Selecciona un producto',''),...products.filter(p=>p.activo).map(p=>new Option(p.nombre+' · Stock '+quantity(p.stock),p.id)));
+    $('invProduct').value=old;
+    $('invHistoryProduct').replaceChildren(new Option('Todos',''),...products.map(p=>new Option(p.nombre,p.id)));$('invHistoryProduct').value=oldHistory;
+    invControls();
+  }
+  async function invRows(table,cols,filter=q=>q){
+    const rows=[];
+    for(let start=0;;start+=500){const {data,error}=await filter(client.from(table).select(cols)).range(start,start+499);if(error)throw error;rows.push(...data);if(data.length<500)return rows;}
+  }
+  async function invLoad(){
+    if(!isAdmin()||invBusy)return;
+    const stamp=generation,seq=++invSeq;invBusy=true;invControls();invMsg('Cargando proveedores y pedidos…');
+    try{
+      const [suppliers,orders]=await Promise.all([
+        invRows('inv_proveedores','id,nombre,contacto',q=>q.order('nombre').order('id')),
+        invRows('inv_compras','id,proveedor_nombre,estado,notas,created_at,inv_compra_items(producto_id::text,nombre,unidad,cantidad,recibido,precio)',q=>q.order('created_at',{ascending:false}).order('id'))
+      ]);
+      if(!current(stamp)||seq!==invSeq)return;
+      invSuppliers=suppliers;invOrders=orders;invReady=true;
+      const selected=$('invSupplier').value;
+      $('invSupplier').replaceChildren(new Option('Selecciona proveedor',''),...suppliers.map(s=>new Option(s.nombre,s.id)));$('invSupplier').value=selected;
+      invRenderOrders();invMsg('Compras actualizadas.');
+    }catch(e){if(current(stamp)&&seq===invSeq){invReady=false;invMsg('No se pudieron cargar las compras: '+(e.message||productError(e)));}}
+    finally{if(current(stamp)&&seq===invSeq){invBusy=false;invControls();}}
+  }
+  function invInput(label,value,max,step){
+    const wrap=node('label',label),input=document.createElement('input');input.type='number';input.min='0';input.max=String(max);input.step=step;input.required=true;input.value=value;input.inputMode='decimal';wrap.append(input);return {wrap,input};
+  }
+  function invAddProduct(p){
+    if(!p||invCart.some(l=>l.id===p.id)||invCart.length>=100)return;
+    invCart.push({id:p.id,nombre:p.nombre,unidad:p.unidad,cantidad:invNum(Math.max(1,Number(p.stock_minimo)-Number(p.stock))),precio:invNum(p.precio_compra,2)});
+  }
+  function invRenderCart(){
+    $('invCart').replaceChildren();
+    for(const l of invCart){
+      const row=node('div',undefined,'card');row.append(node('h4',l.nombre+' · '+l.unidad));
+      const qty=invInput('Cantidad',l.cantidad,1000000,'0.001'),cost=invInput('Precio de compra por unidad ($)',l.precio,1000000000,'0.01');qty.input.min='0.001';
+      qty.input.oninput=()=>l.cantidad=qty.input.value;cost.input.oninput=()=>l.precio=cost.input.value;
+      const del=node('button','Quitar');del.type='button';del.onclick=()=>{invCart=invCart.filter(x=>x!==l);invRenderCart();};row.append(qty.wrap,cost.wrap,del);$('invCart').append(row);
+    }invControls();
+  }
+  $('invAdd').onclick=()=>{invAddProduct(products.find(p=>p.id===$('invProduct').value));invRenderCart();};
+  $('invSuggest').onclick=()=>{products.filter(p=>p.activo&&Number(p.stock)<=Number(p.stock_minimo)).forEach(invAddProduct);invRenderCart();invMsg('Sugerencias añadidas (máximo 100). Revisa cantidades y proveedor.');};
+  $('invSupplierForm').onsubmit=async e=>{
+    e.preventDefault();if(invBusy||!isAdmin())return;
+    const f=e.currentTarget,stamp=generation;
+    invSupplierAttempt ||= {id:crypto.randomUUID(),nombre:f.elements.nombre.value.trim(),contacto:f.elements.contacto.value.trim()};
+    if(!invSupplierAttempt.nombre){invSupplierAttempt=null;return;}
+    invBusy=true;invControls();
+    try{const {error}=await client.from('inv_proveedores').upsert(invSupplierAttempt,{onConflict:'id',ignoreDuplicates:true});if(error)throw error;
+      if(!current(stamp))return;invSupplierAttempt=null;f.reset();invBusy=false;await invLoad();
+    }catch(e){if(current(stamp))invMsg('No se confirmó el proveedor. Reintenta para recuperar el mismo registro: '+(e.message||''));}
+    finally{if(current(stamp)){invBusy=false;invControls();}}
+  };
+  $('invPurchaseForm').onsubmit=async e=>{
+    e.preventDefault();if(invBusy||!invReady||!isAdmin())return;
+    if(!invPurchaseAttempt){
+      if(!invCart.length)return invMsg('Añade al menos un producto.');
+      invPurchaseAttempt={p_ref:crypto.randomUUID(),p_proveedor:$('invSupplier').value,p_items:invCart.map(l=>({producto_id:l.id,cantidad:invNum(l.cantidad),precio:invNum(l.precio,2)})),p_notas:$('invNotes').value.trim()};
+    }
+    const stamp=generation;invBusy=true;invControls();invMsg('Guardando pedido…');
+    try{const {error}=await client.rpc('inv_crear_compra',invPurchaseAttempt);if(error)throw error;if(!current(stamp))return;
+      invPurchaseAttempt=null;invCart=[];invRenderCart();$('invNotes').value='';invBusy=false;await invLoad();invMsg('Pedido guardado. Puedes exportarlo o registrar su recepción.');
+    }catch(e){if(current(stamp)){if(e.code&&/^(P4000|23514|22)/.test(e.code))invPurchaseAttempt=null;invMsg('No se confirmó el pedido: '+(e.message||'Comprueba internet.')+' Reintentar usa la misma referencia para evitar duplicados.');}}
+    finally{if(current(stamp)){invBusy=false;invControls();}}
+  };
+  function invRenderOrders(){
+    $('invOrders').replaceChildren();
+    if(!invOrders.length)$('invOrders').append(node('p','Todavía no hay pedidos a proveedores.'));
+    for(const o of invOrders){
+      const card=node('details',undefined,'card');card.append(node('summary',o.proveedor_nombre+' · '+o.estado+' · '+invDate(o.created_at)));
+      card.append(node('p','Pedido '+o.id),node('p',o.notas||''));
+      const exp=node('button','Exportar este pedido CSV');exp.type='button';exp.onclick=()=>invExportOrders([o]);card.append(exp);
+      const form=document.createElement('form'),inputs=[];
+      for(const l of o.inv_compra_items){
+        form.append(node('p',l.nombre+' · Pedido: '+quantity(l.cantidad)+' · Recibido: '+quantity(l.recibido)+' '+l.unidad));
+        const pending=Number((Number(l.cantidad)-Number(l.recibido)).toFixed(3));
+        if(pending>0){const q=invInput('Recibir ahora (pendiente '+quantity(pending)+')',0,pending,'0.001'),c=invInput('Costo real por unidad ($)',l.precio,1000000000,'0.01');form.append(q.wrap,c.wrap);inputs.push({l,q:q.input,c:c.input});}
+      }
+      if(o.estado!=='recibido'){
+        const label=node('label','Referencia de entrega / documento'),ref=document.createElement('input');ref.maxLength=300;label.append(ref);form.append(label);
+        const all=node('button','Completar cantidades pendientes');all.type='button';all.onclick=()=>inputs.forEach(x=>x.q.value=x.q.max);
+        const send=node('button','Confirmar recepción / reintentar');send.type='submit';form.append(all,send);
+        form.onsubmit=async e=>{
+          e.preventDefault();if(invBusy||!isAdmin())return;
+          let attempt=invReceiptAttempts.get(o.id);
+          if(!attempt){
+            const items=inputs.filter(x=>Number(x.q.value)>0).map(x=>({producto_id:x.l.producto_id,cantidad:invNum(x.q.value),precio:invNum(x.c.value,2)}));
+            if(!items.length)return invMsg('Indica cuánto recibiste de al menos un producto.');
+            if(!confirm('¿Confirmar la recepción? Se sumarán las cantidades recibidas al stock y se actualizarán sus costos de compra.'))return;
+            attempt={p_ref:crypto.randomUUID(),p_compra:o.id,p_items:items,p_referencia:ref.value.trim()};invReceiptAttempts.set(o.id,attempt);
+          }
+          const stamp=generation;invBusy=true;invControls();
+          try{const {error}=await client.rpc('inv_recibir_compra',attempt);if(error)throw error;if(!current(stamp))return;
+            invReceiptAttempts.delete(o.id);invBusy=false;await refreshInventory();await invLoad();invMsg('✓ Recepción registrada; stock y costos actualizados.');
+          }catch(e){if(current(stamp)){if(e.code&&/^(P4000|P4090|23514|22)/.test(e.code))invReceiptAttempts.delete(o.id);invMsg('No se confirmó la recepción: '+(e.message||'Comprueba internet.')+' Reintenta sin duplicar la recepción.');}}
+          finally{if(current(stamp)){invBusy=false;invControls();}}
+        };
+      }
+      card.append(form);$('invOrders').append(card);
+    }invControls();
+  }
+  function invCSV(name,rows){
+    const safe=v=>{let s=String(v??'');if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};
+    const blob=new Blob(['\ufeff'+rows.map(r=>r.map(safe).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function invExportOrders(orders){invCSV('olimpo-compras',[['Pedido','Fecha','Proveedor','Estado','Producto','Unidad','Cantidad pedida','Recibido','Pendiente','Precio pedido','Total pedido'],...orders.flatMap(o=>o.inv_compra_items.map(l=>[o.id,invDate(o.created_at),o.proveedor_nombre,o.estado,l.nombre,l.unidad,l.cantidad,l.recibido,Number((l.cantidad-l.recibido).toFixed(3)),l.precio,Number((l.cantidad*l.precio).toFixed(2))]))]);}
+  $('invExportStock').onclick=()=>{if(!inventoryReady)return invMsg('Actualiza el inventario primero.');invCSV('olimpo-inventario',[['Código','Producto','Categoría','Unidad','Stock','Mínimo','Precio compra','Precio venta','Valor al costo','Activo'],...products.map(p=>[p.codigo,p.nombre,p.categoria,p.unidad,p.stock,p.stock_minimo,p.precio_compra,p.precio_venta,Number((p.stock*p.precio_compra).toFixed(2)),p.activo?'Sí':'No'])]);};
+  $('invExportPurchases').onclick=()=>{if(invReady)invExportOrders(invOrders);};
+  $('invReload').onclick=invLoad;
+  $('invHistoryLoad').onclick=async()=>{
+    if(invBusy||!isAdmin())return;
+    const from=$('invFrom').value,to=$('invTo').value,pid=$('invHistoryProduct').value;
+    if(from&&to&&from>to)return invMsg('La fecha inicial debe ser anterior a la final.');
+    // Date boundaries use the device timezone, displayed explicitly alongside results.
+    const stamp=generation;invBusy=true;invHistory=[];invControls();$('invHistory').replaceChildren();
+    try{
+      const rows=await invRows('inv_movimientos','id::text,producto_id::text,nombre,codigo,unidad,stock_anterior,stock_nuevo,precio_anterior,precio_nuevo,tipo,recepcion_id,created_at',q=>{
+        q=q.order('id',{ascending:false});if(pid)q=q.eq('producto_id',pid);
+        if(from)q=q.gte('created_at',new Date(from+'T00:00:00').toISOString());
+        if(to){const end=new Date(to+'T00:00:00');end.setDate(end.getDate()+1);q=q.lt('created_at',end.toISOString());}return q;
+      });if(!current(stamp))return;invHistory=rows;
+      $('invHistory').append(node('p',rows.length+' movimientos. Filtro de fechas: zona horaria de tu dispositivo. Horas mostradas: Santiago.'));
+      rows.slice(0,100).forEach(r=>$('invHistory').append(node('p',invDate(r.created_at)+' · '+r.nombre+' · '+r.tipo+' · Stock '+quantity(r.stock_anterior)+' → '+quantity(r.stock_nuevo)+' · Costo '+money(r.precio_anterior)+' → '+money(r.precio_nuevo))));
+      if(rows.length>100)$('invHistory').append(node('p','Se muestran los últimos 100; el CSV incluye todos los resultados.'));invMsg('Historial consultado.');
+    }catch(e){if(current(stamp))invMsg('No se pudo consultar el historial: '+(e.message||''));}
+    finally{if(current(stamp)){invBusy=false;invControls();}}
+  };
+  $('invExportHistory').onclick=()=>invCSV('olimpo-movimientos',[['Fecha','Producto','Código','Unidad','Tipo','Stock anterior','Stock nuevo','Diferencia','Costo anterior','Costo nuevo','Recepción'],...invHistory.map(r=>[invDate(r.created_at),r.nombre,r.codigo,r.unidad,r.tipo,r.stock_anterior,r.stock_nuevo,Number((r.stock_nuevo-r.stock_anterior).toFixed(3)),r.precio_anterior,r.precio_nuevo,r.recepcion_id])]);
+  let invScanStream=null,invScanSeq=0,invScanTimer=null;
+  function invStopScan(){invScanSeq++;clearTimeout(invScanTimer);invScanStream?.getTracks().forEach(t=>t.stop());invScanStream=null;$('invVideo').srcObject=null;if($('invScanner').open)$('invScanner').close();}
+  async function invScan(target){
+    invStopScan();const seq=invScanSeq;$('invScanner').showModal();$('invScanStatus').textContent='Preparando cámara…';
+    try{
+      if(!navigator.mediaDevices?.getUserMedia||!window.BarcodeDetector)throw Error('Este navegador no admite el lector. Usa Chrome en Android o escribe el código manualmente.');
+      const formats=await BarcodeDetector.getSupportedFormats();const supported=['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf'].filter(f=>formats.includes(f));
+      if(!supported.length)throw Error('No hay formatos de barras compatibles. Escribe el código manualmente.');
+      if(seq!==invScanSeq)return;
+      const detector=new BarcodeDetector({formats:supported}),stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      if(seq!==invScanSeq){stream.getTracks().forEach(t=>t.stop());return;}
+      invScanStream=stream;$('invVideo').srcObject=stream;await $('invVideo').play();$('invScanStatus').textContent='Apunta al código con buena luz. Mantén el celular quieto.';
+      async function scan(){if(seq!==invScanSeq)return;try{const codes=await detector.detect($('invVideo'));if(seq!==invScanSeq)return;if(codes[0]?.rawValue){target.value=codes[0].rawValue;target.dispatchEvent(new Event('input',{bubbles:true}));invStopScan();target.focus();return;}}catch{}invScanTimer=setTimeout(scan,250);}scan();
+    }catch(e){if(seq===invScanSeq){invScanStream?.getTracks().forEach(t=>t.stop());invScanStream=null;$('invScanStatus').textContent=e.name==='NotAllowedError'?'Permite el acceso a la cámara para escanear, o escribe el código manualmente.':e.message;}}
+  }
+  $('invScanSearch').onclick=()=>invScan($('buscarProducto'));
+  $('invScanCode').onclick=()=>invScan(productForm.elements.codigo);
+  $('invScanClose').onclick=invStopScan;$('invScanner').addEventListener('cancel',invStopScan);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)invStopScan();});
+  new MutationObserver(()=>{if($('inventario').classList.contains('oculto'))invStopScan();}).observe($('inventario'),{attributes:true,attributeFilter:['class']});
 
   lock();
   try {
